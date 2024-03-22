@@ -35,7 +35,7 @@ services:
       - --api.insecure=true
       - --providers.docker=true
       - --entrypoints.web.address=:80
-      - --experimental.localPlugins.ratelimit.moduleName=github.com/ghnexpress/traefik-ratelimit
+      - --experimental.localPlugins.ratelimit.moduleName=gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit
     ports:
       - "80:80"
       - "8080:8080"
@@ -43,7 +43,7 @@ services:
       - traefik-network
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./plugins-local/src/github.com/ghnexpress/traefik-ratelimit:/plugins-local/src/github.com/ghnexpress/traefik-ratelimit
+      - ./plugins-local/src/gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit:/plugins-local/src/gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit
     labels:
       - traefik.http.middlewares.rate-limit.plugin.ratelimit.windowTime=100
       - traefik.http.middlewares.rate-limit.plugin.ratelimit.maxRequestInWindow=10
