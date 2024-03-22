@@ -89,29 +89,27 @@ type Settings interface {
 	Get(key string) (*keeper.Resp, error)
 }
 
+
 // New created a new plugin.
-
-
-func newRateLimit(next http.Handler, cfg *Config, name string) *RateLimit {
-	r := &RateLimit{
-		name:     name,
-		next:     next,
-		config:   cfg,
-		settings: keeper.New(cfg.KeeperURL, cfg.KeeperReqTimeout.Duration, cfg.KeeperAdminPassword),
-	}
-	r.limits.Store(&limits{
-		limits:  make(map[string]*limits2),
-		mlimits: make(map[klimit]*limit),
-		ipat:    make([][]int, 0),
-	})
-	return r
-}
-
-
 func New(ctx context.Context, next http.Handler, cfg *Config, name string) (http.Handler, error) {
 	mlog(fmt.Sprintf("config %v", cfg))
-	r := newRateLimit(next, cfg, name)
+	if len(cfg.KeeperRateLimitKey) == 0 {
+		return nil, fmt.Errorf("config: keeperRateLimitKey is empty")
+	}
 
+	if len(cfg.KeeperURL) == 0 {
+		return nil, fmt.Errorf("config: keeperURL is empty")
+	}
+
+	if len(cfg.KeeperAdminPassword) == 0 {
+		return nil, fmt.Errorf("config: keeperAdminPassword is empty")
+	}
+
+	if cfg.KeeperReqTimeout.Duration == 0 {
+		cfg.KeeperReqTimeout.Duration = 300 * time.Second
+	}
+
+	r := newRateLimit(next, cfg, name)
 	err := r.setFromSettings()
 	if err != nil {
 		return nil, err
@@ -133,6 +131,21 @@ func New(ctx context.Context, next http.Handler, cfg *Config, name string) (http
 	}()
 
 	return r, nil
+}
+
+func newRateLimit(next http.Handler, cfg *Config, name string) *RateLimit {
+	r := &RateLimit{
+		name:     name,
+		next:     next,
+		config:   cfg,
+		settings: keeper.New(cfg.KeeperURL, cfg.KeeperReqTimeout.Duration, cfg.KeeperAdminPassword),
+	}
+	r.limits.Store(&limits{
+		limits:  make(map[string]*limits2),
+		mlimits: make(map[klimit]*limit),
+		ipat:    make([][]int, 0),
+	})
+	return r
 }
 
 func (r *RateLimit) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
@@ -224,17 +237,19 @@ func appendipat(ipat [][]int, ipt []int) [][]int {
 	return append(ipat, ipt)
 }
 
-func preparepat(ip []int, s string) (string, bool) {
+func preparepat(ipt []int, s string) (string, bool) {
+//	fmt.Println("prep", s)
 	ss := strings.Split(s, "/")
-	r := make([]string, 0, len(ip))
-	for _, i := range ip {
+	r := make([]string, 0, len(ipt))
+	for _, i := range ipt {
 		j := i
 		if i < 0 {
 			j = len(ss) + i
 		}
-		if j+1 > len(ss) || j+1 < 0 {
+		if j > len(ss)-1 || j < 0 {
 			return "", false
 		}
+//		fmt.Println("prep", i, len(ss), j)
 		r = append(r, strconv.Itoa(i)+":"+ss[j])
 	}
 	return strings.Join(r, "/"), true
@@ -245,12 +260,14 @@ func compilepat(s string) (string, []int, error) {
 		return "", nil, nil
 	}
 	f := 0
+	fl := false
 	ss := strings.Split(s, "/")
 	r := make([]string, 0, len(ss))
 	ri := make([]int, 0, len(ss))
 	for i, s := range ss {
 		switch s {
 		case "**":
+			fl = true
 			if f > 0 {
 				return "", nil, fmt.Errorf("bad pattern")
 			}
@@ -262,7 +279,7 @@ func compilepat(s string) (string, []int, error) {
 		}
 	}
 	for i := range r {
-		if ri[i] >= f {
+		if ri[i] >= f && fl {
 			ri[i] = ri[i] - ri[len(ri)-1] - 1
 		}
 		r[i] = strconv.Itoa(ri[i]) + ":" + r[i]
