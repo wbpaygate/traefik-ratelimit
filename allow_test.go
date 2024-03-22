@@ -28,8 +28,9 @@ func Test_allow(t *testing.T) {
 {
   "limits": [
     {"endpointpat": "/api/v2/methods",         "limit": 1},
-    {"endpointpat": "/api/v2/**/methods",      "limit": 2},
-    {"endpointpat": "/api/v2/*/aa/**/methods", "limit": 2}
+    {"endpointpat": "/api/v2/methods",         "limit": 2},
+    {"endpointpat": "/api/v2/**/methods",      "limit": 1},
+    {"endpointpat": "/api/v2/*/aa/**/methods", "limit": 1}
   ]
 }`,
 
@@ -41,6 +42,7 @@ func Test_allow(t *testing.T) {
 			conf: `
 {
   "limits": [
+    {"endpointpat": "/api/v3/methods",      "limit": 1},
     {"endpointpat": "/api/v2/**/methods",   "limit": 1} 
   ]
 }
@@ -57,6 +59,11 @@ func Test_allow(t *testing.T) {
 					uri: "https://aa.bb/api/v2/aaa/aaa/methods",
 					
 					res: false,
+				},
+				testdata{
+					uri: "https://aa.bb/api/v4/methods",
+					
+					res: true,
 				},
 			},
 		},
@@ -89,8 +96,6 @@ func Test_allow(t *testing.T) {
 			}
 
 			for _, d := range tc.tests {
-
-				
 				req,err := prepreq(d)
 				if err != nil {
 					panic(err)
@@ -124,12 +129,12 @@ func prepreq(d testdata) (*http.Request, error) {
 }
 
 func compare(b []byte, r *RateLimit) error {
-/*
+
 	type conflimits struct {
 		Limits []climit `json:"limits"`
 	}
 
-
+/*
 	var lim conflimits
 
 	if err := json.Unmarshal(b, &lim); err != nil {

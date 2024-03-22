@@ -45,8 +45,10 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./plugins-local/src/gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit:/plugins-local/src/gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit
     labels:
-      - traefik.http.middlewares.rate-limit.plugin.ratelimit.windowTime=100
-      - traefik.http.middlewares.rate-limit.plugin.ratelimit.maxRequestInWindow=10
+      - traefik.http.middlewares.rate-limit.plugin.ratelimit.keeperRateLimitKey=wbpay-ratelimits
+      - traefik.http.middlewares.rate-limit.plugin.ratelimit.keeperURL=http://keeper-ext.wbpay.svc.k8s.wbpay-dev:8080
+      - traefik.http.middlewares.rate-limit.plugin.ratelimit.keeperAdminPassword=Pa$sw0rd
+      - traefik.http.middlewares.rate-limit.plugin.ratelimit.keeperReqTimeout=300s
   whoami:
     image: traefik/whoami
     container_name: simple-service
