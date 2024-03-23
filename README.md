@@ -9,14 +9,13 @@ The source code of the plugin should be organized as follows:
  ├── docker-compose.yml
  └── plugins-local
     └── src
-        └── github.com
-            └── ghnexpress
+        └── gitlab-private.wildberries.ru
+            └── wbpay-go
                 └── traefik-ratelimit
                     ├── main.go
                     ├── vendor
                     ├── go.mod
                     └── ...
-
 ```
 
 ```yaml
@@ -65,3 +64,8 @@ networks:
   traefik-network:
     driver: bridge
 ```
+
+### keeper data for ratelimit
+
+
+

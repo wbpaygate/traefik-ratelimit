@@ -8,8 +8,6 @@ import (
 	"golang.org/x/time/rate"
 	"net/http"
 	"os"
-	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -89,7 +87,6 @@ type Settings interface {
 	Get(key string) (*keeper.Resp, error)
 }
 
-
 // New created a new plugin.
 func New(ctx context.Context, next http.Handler, cfg *Config, name string) (http.Handler, error) {
 	mlog(fmt.Sprintf("config %v", cfg))
@@ -152,11 +149,11 @@ func (r *RateLimit) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	encoder := json.NewEncoder(rw)
 	//	requestID := req.Header.Get(xRequestIDHeader)
 
-//	reqCtx := req.Context()
+	//	reqCtx := req.Context()
 	//	reqCtx = context.WithValue(reqCtx, "requestID", requestID)
 	//	reqCtx = context.WithValue(reqCtx, "env", r.config.Env)
 
-//	if r.Allow(reqCtx, req, rw) {
+	//	if r.Allow(reqCtx, req, rw) {
 	if r.Allow(req) {
 		r.next.ServeHTTP(rw, req)
 		return
@@ -206,14 +203,14 @@ func allow(lim map[string]*limits2, p string, req *http.Request) (bool, bool) {
 	return false, false
 }
 
-//func (r *RateLimit) Allow(ctx context.Context, req *http.Request, rw http.ResponseWriter) bool {
+// func (r *RateLimit) Allow(ctx context.Context, req *http.Request, rw http.ResponseWriter) bool {
 func (r *RateLimit) Allow(req *http.Request) bool {
 	lim := r.limits.Load()
-//	fmt.Println("lim.ipat", lim.ipat)
+	//	fmt.Println("lim.ipat", lim.ipat)
 	for _, ipt := range lim.ipat {
-//		fmt.Println("ipat", ipt)
+		//		fmt.Println("ipat", ipt)
 		if p, ok := preparepat(ipt, req.URL.Path); ok {
-//			fmt.Println("p", p, ok)
+			//			fmt.Println("p", p, ok)
 			if res, ok := allow(lim.limits, p, req); ok {
 				return res
 			}
@@ -225,74 +222,12 @@ func (r *RateLimit) Allow(req *http.Request) bool {
 	return true
 }
 
-func appendipat(ipat [][]int, ipt []int) [][]int {
-	if ipt == nil {
-		return ipat
-	}
-	for _, tipt := range ipat {
-		if slices.Equal(tipt, ipt) {
-			return ipat
-		}
-	}
-	return append(ipat, ipt)
-}
-
-func preparepat(ipt []int, s string) (string, bool) {
-//	fmt.Println("prep", s)
-	ss := strings.Split(s, "/")
-	r := make([]string, 0, len(ipt))
-	for _, i := range ipt {
-		j := i
-		if i < 0 {
-			j = len(ss) + i
-		}
-		if j > len(ss)-1 || j < 0 {
-			return "", false
-		}
-//		fmt.Println("prep", i, len(ss), j)
-		r = append(r, strconv.Itoa(i)+":"+ss[j])
-	}
-	return strings.Join(r, "/"), true
-}
-
-func compilepat(s string) (string, []int, error) {
-	if len(strings.TrimSpace(s)) == 0 {
-		return "", nil, nil
-	}
-	f := 0
-	fl := false
-	ss := strings.Split(s, "/")
-	r := make([]string, 0, len(ss))
-	ri := make([]int, 0, len(ss))
-	for i, s := range ss {
-		switch s {
-		case "**":
-			fl = true
-			if f > 0 {
-				return "", nil, fmt.Errorf("bad pattern")
-			}
-			f = i + 1
-		case "*", "":
-		default:
-			r = append(r, s)
-			ri = append(ri, i)
-		}
-	}
-	for i := range r {
-		if ri[i] >= f && fl {
-			ri[i] = ri[i] - ri[len(ri)-1] - 1
-		}
-		r[i] = strconv.Itoa(ri[i]) + ":" + r[i]
-	}
-	return strings.Join(r, "/"), ri, nil
-}
-
 func (r *RateLimit) update(b []byte) error {
 	type conflimits struct {
 		Limits []climit `json:"limits"`
 	}
 
-//	fmt.Println("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	//	fmt.Println("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 
 	var clim conflimits
 	if err := json.Unmarshal(b, &clim); err != nil {
@@ -331,7 +266,7 @@ func (r *RateLimit) update(b []byte) error {
 	}
 	clim.Limits = clim.Limits[:j]
 
-//	fmt.Println("limits", clim.Limits)
+	//	fmt.Println("limits", clim.Limits)
 
 	r.mtx.Lock()
 	defer r.mtx.Unlock()

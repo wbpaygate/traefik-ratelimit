@@ -1,19 +1,19 @@
 package traefik_ratelimit
 
 import (
-//	"fmt"
+	//	"fmt"
 	"slices"
 	"testing"
 )
 
 func Test_compilepat(t *testing.T) {
 	cases := []struct {
-		name string
-		s    string
+		name   string
+		s      string
 		resp   string
 		resipt []int
 		reserr bool
-	} {
+	}{
 		{
 			name:   "t1",
 			s:      "/",
@@ -42,7 +42,7 @@ func Test_compilepat(t *testing.T) {
 			name:   "t1",
 			s:      "/a/**/aa",
 			resp:   "1:a/-1:aa",
-			resipt: []int{1,-1},
+			resipt: []int{1, -1},
 			reserr: false,
 		},
 
@@ -50,7 +50,7 @@ func Test_compilepat(t *testing.T) {
 			name:   "t1",
 			s:      "/a/*/b/**/aa",
 			resp:   "1:a/3:b/-1:aa",
-			resipt: []int{1,3,-1},
+			resipt: []int{1, 3, -1},
 			reserr: false,
 		},
 
@@ -58,7 +58,7 @@ func Test_compilepat(t *testing.T) {
 			name:   "t1",
 			s:      "/a/*/b/**/a/*/b",
 			resp:   "1:a/3:b/-3:a/-1:b",
-			resipt: []int{1,3,-3,-1},
+			resipt: []int{1, 3, -3, -1},
 			reserr: false,
 		},
 
@@ -67,7 +67,6 @@ func Test_compilepat(t *testing.T) {
 			s:      "/a/**/b/**/aa",
 			reserr: true,
 		},
-
 	}
 
 	for _, tc := range cases {
@@ -89,5 +88,3 @@ func Test_compilepat(t *testing.T) {
 		})
 	}
 }
-
-

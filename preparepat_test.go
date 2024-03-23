@@ -1,10 +1,9 @@
 package traefik_ratelimit
 
 import (
-//	"fmt"
+	//	"fmt"
 	"testing"
 )
-
 
 func Test_preparepat(t *testing.T) {
 	cases := []struct {
@@ -13,38 +12,38 @@ func Test_preparepat(t *testing.T) {
 		s    string
 		resb bool
 		ress string
-	} {
+	}{
 		{
 			name: "t1",
-			ipt:  []int{1,2,3},
+			ipt:  []int{1, 2, 3},
 			s:    "/",
 			resb: false,
 			ress: "",
 		},
 		{
 			name: "t1",
-			ipt:  []int{1,-2,-1},
+			ipt:  []int{1, -2, -1},
 			s:    "/aa/bb/cc/dd",
 			resb: true,
 			ress: "1:aa/-2:cc/-1:dd",
 		},
 		{
 			name: "t1",
-			ipt:  []int{-4,-2,-1},
+			ipt:  []int{-4, -2, -1},
 			s:    "/aa/bb/cc/dd",
 			resb: true,
 			ress: "-4:aa/-2:cc/-1:dd",
 		},
 		{
 			name: "t1",
-			ipt:  []int{-5,-2,-1},
+			ipt:  []int{-5, -2, -1},
 			s:    "/aa/bb/cc/dd",
 			resb: true,
 			ress: "-5:/-2:cc/-1:dd",
 		},
 		{
 			name: "t1",
-			ipt:  []int{-6,-2,-1},
+			ipt:  []int{-6, -2, -1},
 			s:    "/aa/bb/cc/dd",
 			resb: false,
 			ress: "",
@@ -65,7 +64,6 @@ func Test_preparepat(t *testing.T) {
 			resb: true,
 			ress: "4:dd",
 		},
-
 	}
 
 	for _, tc := range cases {
@@ -79,5 +77,3 @@ func Test_preparepat(t *testing.T) {
 		})
 	}
 }
-
-
