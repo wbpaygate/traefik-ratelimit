@@ -1,4 +1,4 @@
-package traefik_ratelimit
+package pat
 
 import (
 	"fmt"
@@ -7,7 +7,9 @@ import (
 	"strings"
 )
 
-func appendipat(ipat [][]int, ipt []int) [][]int {
+type Pat int
+
+func Appendpat(ipat [][]Pat, ipt []Pat) [][]Pat {
 	if ipt == nil {
 		return ipat
 	}
@@ -19,25 +21,25 @@ func appendipat(ipat [][]int, ipt []int) [][]int {
 	return append(ipat, ipt)
 }
 
-func preparepat(ipt []int, s string) (string, bool) {
+func Preparepat(ipt []Pat, s string) (string, bool) {
 	//	fmt.Println("prep", s)
 	ss := strings.Split(s, "/")
 	r := make([]string, 0, len(ipt))
 	for _, i := range ipt {
 		j := i
 		if i < 0 {
-			j = len(ss) + i
+			j = Pat(len(ss)) + i
 		}
-		if j > len(ss)-1 || j < 0 {
+		if j > Pat(len(ss))-1 || j < 0 {
 			return "", false
 		}
 		//		fmt.Println("prep", i, len(ss), j)
-		r = append(r, strconv.Itoa(i)+":"+ss[j])
+		r = append(r, strconv.Itoa(int(i))+":"+ss[j])
 	}
 	return strings.Join(r, "/"), true
 }
 
-func compilepat(s string) (string, []int, error) {
+func Compilepat(s string) (string, []Pat, error) {
 	if len(strings.TrimSpace(s)) == 0 {
 		return "", nil, nil
 	}
@@ -45,7 +47,7 @@ func compilepat(s string) (string, []int, error) {
 	fl := false
 	ss := strings.Split(s, "/")
 	r := make([]string, 0, len(ss))
-	ri := make([]int, 0, len(ss))
+	ri := make([]Pat, 0, len(ss))
 	for i, s := range ss {
 		switch s {
 		case "**":
@@ -57,14 +59,14 @@ func compilepat(s string) (string, []int, error) {
 		case "*", "":
 		default:
 			r = append(r, s)
-			ri = append(ri, i)
+			ri = append(ri, Pat(i))
 		}
 	}
 	for i := range r {
-		if ri[i] >= f && fl {
+		if ri[i] >= Pat(f) && fl {
 			ri[i] = ri[i] - ri[len(ri)-1] - 1
 		}
-		r[i] = strconv.Itoa(ri[i]) + ":" + r[i]
+		r[i] = strconv.Itoa(int(ri[i])) + ":" + r[i]
 	}
 	return strings.Join(r, "/"), ri, nil
 }

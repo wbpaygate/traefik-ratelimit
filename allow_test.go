@@ -34,7 +34,6 @@ func Test_allow(t *testing.T) {
   ]
 }`,
 			//    {"endpointpat": "/api/v2/**/methods",      "limit": 1},
-
 			res: true,
 
 			tests: []testdata{
@@ -82,7 +81,8 @@ func Test_allow(t *testing.T) {
 			conf: `
 {
   "limits": [
-    {"endpointpat": "/api/v3/methods",      "limit": 1},
+    {"endpointpat": "/api/v3/methods/aa$",  "limit": 1},
+    {"endpointpat": "/api/v3/methods1",     "limit": 1},
     {"endpointpat": "/api/v2/**/methods",   "limit": 1} 
   ]
 }
@@ -96,8 +96,19 @@ func Test_allow(t *testing.T) {
 				},
 				testdata{
 					uri: "https://aa.bb/api/v2/aaa/aaa/methods",
-
 					res: false,
+				},
+				testdata{
+					uri: "https://aa.bb/api/v3/methods/aa",
+					res: false,
+				},
+				testdata{
+					uri: "https://aa.bb/api/v3/methods",
+					res: true,
+				},
+				testdata{
+					uri: "https://aa.bb/api/v3/methods/aa/bb",
+					res: true,
 				},
 				testdata{
 					uri: "https://aa.bb/api/v4/methods",
