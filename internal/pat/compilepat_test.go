@@ -1,24 +1,24 @@
-package traefik_ratelimit
+package pat
 
 import (
-//	"fmt"
+	//	"fmt"
 	"slices"
 	"testing"
 )
 
 func Test_compilepat(t *testing.T) {
 	cases := []struct {
-		name string
-		s    string
+		name   string
+		s      string
 		resp   string
-		resipt []int
+		resipt []Pat
 		reserr bool
-	} {
+	}{
 		{
 			name:   "t1",
 			s:      "/",
 			resp:   "",
-			resipt: []int{},
+			resipt: []Pat{},
 			reserr: false,
 		},
 
@@ -26,7 +26,7 @@ func Test_compilepat(t *testing.T) {
 			name:   "t2",
 			s:      "/aa",
 			resp:   "1:aa",
-			resipt: []int{1},
+			resipt: []Pat{1},
 			reserr: false,
 		},
 
@@ -34,7 +34,7 @@ func Test_compilepat(t *testing.T) {
 			name:   "t1",
 			s:      "/**/aa",
 			resp:   "-1:aa",
-			resipt: []int{-1},
+			resipt: []Pat{-1},
 			reserr: false,
 		},
 
@@ -42,7 +42,7 @@ func Test_compilepat(t *testing.T) {
 			name:   "t1",
 			s:      "/a/**/aa",
 			resp:   "1:a/-1:aa",
-			resipt: []int{1,-1},
+			resipt: []Pat{1, -1},
 			reserr: false,
 		},
 
@@ -50,7 +50,7 @@ func Test_compilepat(t *testing.T) {
 			name:   "t1",
 			s:      "/a/*/b/**/aa",
 			resp:   "1:a/3:b/-1:aa",
-			resipt: []int{1,3,-1},
+			resipt: []Pat{1, 3, -1},
 			reserr: false,
 		},
 
@@ -58,7 +58,7 @@ func Test_compilepat(t *testing.T) {
 			name:   "t1",
 			s:      "/a/*/b/**/a/*/b",
 			resp:   "1:a/3:b/-3:a/-1:b",
-			resipt: []int{1,3,-3,-1},
+			resipt: []Pat{1, 3, -3, -1},
 			reserr: false,
 		},
 
@@ -67,13 +67,12 @@ func Test_compilepat(t *testing.T) {
 			s:      "/a/**/b/**/aa",
 			reserr: true,
 		},
-
 	}
 
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			resp, resipt, err := compilepat(tc.s)
+			resp, resipt, err := Compilepat(tc.s)
 			if err != nil && !tc.reserr {
 				t.Errorf("compilepat %s not expected error %v", tc.name, err)
 				return
@@ -89,5 +88,3 @@ func Test_compilepat(t *testing.T) {
 		})
 	}
 }
-
-
