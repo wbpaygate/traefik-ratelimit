@@ -2,7 +2,7 @@ package pat
 
 import (
 	"fmt"
-	"slices"
+	//	"slices"
 	"strconv"
 	"strings"
 )
@@ -18,12 +18,25 @@ type Pat struct {
 	v int8
 }
 
+func slicesEqual(s1, s2 []Pat) bool {
+	if len(s1) != len(s2) {
+		return false
+	}
+	for i := 0; i < len(s1); i++ {
+		if s1[i] != s2[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func Appendpat(pats [][]Pat, p []Pat) [][]Pat {
 	if p == nil {
 		return pats
 	}
 	for _, tp := range pats {
-		if slices.Equal(tp, p) {
+		//		if slices.Equal(tp, p) {
+		if slicesEqual(tp, p) {
 			return pats
 		}
 	}
@@ -33,7 +46,7 @@ func Appendpat(pats [][]Pat, p []Pat) [][]Pat {
 func Preparepat(pt []Pat, s string) (string, bool) {
 	ss := strings.Split(s, "/")
 	r := make([]string, 0, len(pt))
-pt:
+ptloop:
 	for _, p := range pt {
 		v := ""
 		i := int(p.v)
@@ -46,7 +59,7 @@ pt:
 				return "", false
 			}
 			r = append(r, strconv.Itoa(i)+":$")
-			continue pt
+			continue ptloop
 		}
 		j := i
 		if i < 0 {
