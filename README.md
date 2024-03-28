@@ -9,63 +9,56 @@ The source code of the plugin should be organized as follows:
  ├── docker-compose.yml
  └── plugins-local
     └── src
-        └── gitlab-private.wildberries.ru
-            └── wbpay-go
+        └── github.com
+            └── kav789
                 └── traefik-ratelimit
                     ├── main.go
-                    ├── vendor
                     ├── go.mod
                     └── ...
+
+```
+parameters:
+
+```
+  - keeperRateLimitKey=wbpay-ratelimits
+  - keeperURL=http://keeper-ext.wbpay.svc.k8s.wbpay-dev:8080
+  - keeperAdminPassword=Pa$sw0rd
+  - keeperReqTimeout=300s
+  - ratelimitPath=
+
+```
+rate limit config keeper v1:
+
+```
+{
+  "limits": [
+    {"endpointpat": "/api/v2/methods",         "limit": 1},
+    {"endpointpat": "/api/v2/methods",         "limit": 2},
+    {"endpointpat": "/api/v2/**/methods",      "headerkey": "aa-bb", "headerval": "AsdfG", "limit": 1},
+    {"endpointpat": "/api/v2/*/aa/**/methods", "limit": 1}
+  ]
+}
 ```
 
-```yaml
-# docker-compose.yml
-version: "3.6"
+rate limit config keeper v2:
 
-services:
-  traefik:
-    image: traefik:v2.9.6
-    container_name: traefik
-    command:
-      # - --log.level=DEBUG
-      - --log.level=INFO
-      - --api
-      - --api.dashboard
-      - --api.insecure=true
-      - --providers.docker=true
-      - --entrypoints.web.address=:80
-      - --experimental.localPlugins.ratelimit.moduleName=gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit
-    ports:
-      - "80:80"
-      - "8080:8080"
-    networks:
-      - traefik-network
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./plugins-local/src/gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit:/plugins-local/src/gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit
-    labels:
-      - traefik.http.middlewares.rate-limit.plugin.ratelimit.keeperRateLimitKey=wbpay-ratelimits
-      - traefik.http.middlewares.rate-limit.plugin.ratelimit.keeperURL=http://keeper-ext.wbpay.svc.k8s.wbpay-dev:8080
-      - traefik.http.middlewares.rate-limit.plugin.ratelimit.keeperAdminPassword=Pa$sw0rd
-      - traefik.http.middlewares.rate-limit.plugin.ratelimit.keeperReqTimeout=300s
-  whoami:
-    image: traefik/whoami
-    container_name: simple-service
-    depends_on:
-      - traefik
-    networks:
-      - traefik-network
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.whoami.rule=Host(`localhost`)
-      - traefik.http.routers.whoami.entrypoints=web
-      - traefik.http.routers.whoami.middlewares=rate-limit
-networks:
-  traefik-network:
-    driver: bridge
+
 ```
-
-### keeper data for ratelimit
-
-
-
+{
+  "limits": [
+    {
+      "rules": [
+        {"endpointpat": "/api/v2/**/methods",      "headerkey": "aa-bb", "headerval": "AsdfG"},
+      ],
+      "limit": 1
+    }
+    {
+      "rules": [
+        {"endpointpat": "/api/v2/methods"},
+        {"endpointpat": "/api/v2/*/aa/**/methods"}
+      ],
+      "limit": 1
+    }
+  ]
+}
+```
