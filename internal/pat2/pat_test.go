@@ -1,9 +1,6 @@
 package pat_test
 
 import (
-	//	"fmt"
-
-//	"gitlhub.com/kav789/traefik-ratelimit/internal/pat2"
 	"gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit/internal/pat2"
 	"testing"
 )
@@ -22,11 +19,26 @@ func Test_pat(t *testing.T) {
 		tests []testdata
 	}{
 		{
+			name: "t-1",
+			p:    "/$",
+			res:  true,
+			tests: []testdata{
+				testdata{uri: "", res: false},
+				testdata{uri: "/", res: true},
+				testdata{uri: "/task", res: false},
+				testdata{uri: "/api/v2/aaa/aaa/methods/aa", res: false},
+				testdata{uri: "/api/v2/aaa/aaa/methods", res: false},
+				testdata{uri: "/api/v2/methods", res: false},
+				testdata{uri: "/test/api/v2/aaa/aaa/methods", res: false},
+			},
+		},
+
+		{
 			name: "t0",
 			p:    "$",
 			res:  true,
 			tests: []testdata{
-				testdata{uri: "",  res: true},
+				testdata{uri: "", res: true},
 				testdata{uri: "/", res: false},
 				testdata{uri: "/task", res: false},
 				testdata{uri: "/api/v2/aaa/aaa/methods/aa", res: false},
