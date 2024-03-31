@@ -3,8 +3,6 @@ package traefik_ratelimit_test
 import (
 	"context"
 	"fmt"
-//	ratelimit "github.com/kav789/traefik-ratelimit"
-//	"github.com/kav789/traefik-ratelimit/internal/keeperclient"
 	ratelimit "gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit"
 	"gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit/internal/keeperclient"
 	"net/http"
@@ -64,7 +62,6 @@ func Test_Limit2(t *testing.T) {
 					res: false,
 				},
 
-
 				testdata{
 					uri: "https://aa.bb/api/v2/aaa/aaa/methods",
 					head: map[string]string{
@@ -76,7 +73,6 @@ func Test_Limit2(t *testing.T) {
 					},
 					res: true,
 				},
-
 
 				testdata{
 					uri: "https://aa.bb/api/v2/aaa/aaa/methods",

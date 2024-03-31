@@ -3,7 +3,6 @@ package traefik_ratelimit
 import (
 	"encoding/json"
 	"fmt"
-//	"github.com/kav789/traefik-ratelimit/internal/pat2"
 	"gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit/internal/pat2"
 	"golang.org/x/time/rate"
 	"net/http"
@@ -24,7 +23,7 @@ func (g *GlobalRateLimit) update(b []byte) error {
 	if err := json.Unmarshal(b, &clim); err != nil {
 		return err
 	}
-//	locallog("update2 ", clim)
+	//	locallog("update2 ", clim)
 
 	ep2 := make(map[rule]struct{}, len(clim.Limits))
 	i2lim := make([]*limit, len(clim.Limits))
@@ -78,7 +77,7 @@ func (g *GlobalRateLimit) update(b []byte) error {
 			j2++
 		}
 		clim.Limits[i].Rules = rules[:j2]
-//		fmt.Println(clim.Limits[i].Rules)
+		//		fmt.Println(clim.Limits[i].Rules)
 
 		if len(clim.Limits[i].Rules) == 0 {
 			continue

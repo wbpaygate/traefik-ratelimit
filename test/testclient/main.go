@@ -1,21 +1,20 @@
 package main
 
 import (
-	"os"
-	"os/exec"
-	"sync/atomic"
-	"sync"
-	"net/http"
-	"time"
-	"fmt"
 	"context"
-	"strings"
-//	"github.com/kav789/traefik-ratelimit/internal/keeper"
-//	"github.com/kav789/traefik-ratelimit/internal/keeperclient"
+	"encoding/json"
+	"fmt"
 	"gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit/internal/keeper"
 	"gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit/internal/keeperclient"
-	"encoding/json"
+	"net/http"
+	"os"
+	"os/exec"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
 )
+
 const url = "http://nginx.k8s.local"
 
 func main() {
@@ -27,22 +26,19 @@ func main() {
 
 	var settings keeper.Settings
 
-	settings =  keeper.New(keeper_url, 60  * time.Second, keeper_password)
-
+	settings = keeper.New(keeper_url, 60*time.Second, keeper_password)
 
 	type testdata struct {
-		uri   string
-		head  map[string]string
+		uri  string
+		head map[string]string
 	}
 
-//    {"rules":[
-//              {"endpointpat": "/api/v2/**/methods",     "headerkey": "aa-bb", "headerval": "AsdfG"},
-//              {"endpointpat": "/api/v3/**/methods",     "headerkey": "aa-bb", "headerval": "Asdfm"}
-//             ], "limit": 50},
-//    {"rules":[{"endpointpat": "/api/v2/**/methods",     "headerkey": "aa-Bb", "headerval": "AsdfG"}], "limit": 100},
-//    {"rules":[{"endpointpat": "/api/v2/*/aa/**/methods"}], "limit": 20}
-
-
+	//    {"rules":[
+	//              {"endpointpat": "/api/v2/**/methods",     "headerkey": "aa-bb", "headerval": "AsdfG"},
+	//              {"endpointpat": "/api/v3/**/methods",     "headerkey": "aa-bb", "headerval": "Asdfm"}
+	//             ], "limit": 50},
+	//    {"rules":[{"endpointpat": "/api/v2/**/methods",     "headerkey": "aa-Bb", "headerval": "AsdfG"}], "limit": 100},
+	//    {"rules":[{"endpointpat": "/api/v2/*/aa/**/methods"}], "limit": 20}
 
 	cases := []struct {
 		name  string
@@ -61,8 +57,8 @@ func main() {
 `,
 
 			tests: []testdata{
-				testdata{uri: "/api/v2/aa/bb/methods" , head: map[string]string {"aa-bb": "AsdfG"} },
-				testdata{uri: "/api/v2/ss/ssddd/methods",  head: map[string]string {"aa-bb": "Asdfw"} },
+				testdata{uri: "/api/v2/aa/bb/methods", head: map[string]string{"aa-bb": "AsdfG"}},
+				testdata{uri: "/api/v2/ss/ssddd/methods", head: map[string]string{"aa-bb": "Asdfw"}},
 			},
 		},
 
@@ -78,12 +74,12 @@ func main() {
 }
 `,
 			tests: []testdata{
-				testdata{ uri: "/task" },
-				testdata{ uri: "/api/v2/aaa/aaa/methods" },
-				testdata{ uri: "/api/v3/methods/aa" },
-				testdata{ uri: "/api/v3/methods" },
-				testdata{ uri: "/api/v3/methods/aa/bb" },
-				testdata{ uri: "/api/v4/methods" },
+				testdata{uri: "/task"},
+				testdata{uri: "/api/v2/aaa/aaa/methods"},
+				testdata{uri: "/api/v3/methods/aa"},
+				testdata{uri: "/api/v3/methods"},
+				testdata{uri: "/api/v3/methods/aa/bb"},
+				testdata{uri: "/api/v4/methods"},
 			},
 		},
 	}
@@ -103,7 +99,6 @@ func main() {
 			panic(err)
 		}
 
-		
 		err = kc.Set(keeperclient.KeeperData{
 			Key:         keeper_key,
 			Description: "ratelimiter",
@@ -121,13 +116,13 @@ func main() {
 		}
 		fmt.Println(result.Version, result.ModRevision)
 		waitload(result)
-		fmt.Println("get it")	
+		fmt.Println("get it")
 
 		res0 := make([][]int, len(tc.tests))
 		res1 := make([][]int, len(tc.tests))
 		for i := range tc.tests {
-			res0[i] = make([]int,60)
-			res1[i] = make([]int,60)
+			res0[i] = make([]int, 60)
+			res1[i] = make([]int, 60)
 		}
 
 		f := new(int32)
@@ -138,7 +133,7 @@ func main() {
 				client := &http.Client{
 					Timeout: 60 * time.Second,
 				}
-				req, err := http.NewRequest("GET", url + d.uri, nil)
+				req, err := http.NewRequest("GET", url+d.uri, nil)
 				if err != nil {
 					panic(err)
 				}
@@ -150,11 +145,11 @@ func main() {
 				for atomic.LoadInt32(f) == 0 {
 					res, err := client.Do(req)
 					if err != nil {
-						time.Sleep(20* time.Millisecond)
+						time.Sleep(20 * time.Millisecond)
 						continue
 					}
 					res.Body.Close()
-					t := time.Now()	
+					t := time.Now()
 					if res.StatusCode == http.StatusTooManyRequests {
 						res0[i][t.Second()]++
 					} else {
@@ -163,7 +158,7 @@ func main() {
 					time.Sleep(5 * time.Millisecond)
 
 				}
-			}(i,d)
+			}(i, d)
 		}
 		wg.Add(1)
 		go func() {
@@ -180,14 +175,13 @@ func main() {
 
 }
 
-
 func gettraefikpod() string {
 	cmd := exec.CommandContext(context.Background(), "kubectl", "get", "pod", "-n", "traefik-v2")
 	b, err := cmd.CombinedOutput()
 	if err != nil {
 		panic(err)
 	}
-	for _,s := range strings.Split(string(b), "\n") {
+	for _, s := range strings.Split(string(b), "\n") {
 		fld := strings.Fields(s)
 		if len(fld) == 5 && fld[2] == "Running" {
 			return fld[0]
@@ -202,12 +196,12 @@ func islog(pod string, r *keeper.Resp) bool {
 	if err != nil {
 		panic(err)
 	}
-	ss := fmt.Sprintf("%d %d",r.Version, r.ModRevision)
+	ss := fmt.Sprintf("%d %d", r.Version, r.ModRevision)
 	return strings.Contains(string(b), ss)
 }
 
-func waitload(r  *keeper.Resp) {
-	pod  := gettraefikpod()
+func waitload(r *keeper.Resp) {
+	pod := gettraefikpod()
 	if len(pod) == 0 {
 		panic("pod not found")
 	}

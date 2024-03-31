@@ -1,7 +1,6 @@
 package traefik_ratelimit_test
 
 import (
-//	ratelimit "github.com/kav789/traefik-ratelimit"
 	ratelimit "gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit"
 	"net/http"
 	"testing"
@@ -158,7 +157,7 @@ func Test_Allow2(t *testing.T) {
 					return
 				}
 			}
-/*
+			/*
 
 				for _, d := range tc.tests {
 					req, err := prepreq(d.uri, d,head)
@@ -183,7 +182,7 @@ func Test_Allow2(t *testing.T) {
 					}
 					time.Sleep(1 * time.Second)
 				}
-*/
+			*/
 		})
 		break
 	}

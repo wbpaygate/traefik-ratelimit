@@ -4,16 +4,15 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"io"
 	"net/http"
 	"time"
-	"github.com/pkg/errors"
 )
 
 type Settings interface {
 	Get(key string) (*Resp, error)
 }
-
 
 type Resp struct {
 	Value string `json:"value"`

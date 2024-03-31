@@ -46,5 +46,3 @@ func (g *GlobalRateLimit) setFromSettings() error {
 func (r *RateLimit) Update(b []byte) error {
 	return grl.update(b)
 }
-
-

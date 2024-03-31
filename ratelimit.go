@@ -4,21 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-//	"github.com/kav789/traefik-ratelimit/internal/keeper"
-//	"github.com/kav789/traefik-ratelimit/internal/pat2"
 	"gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit/internal/keeper"
 	"gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit/internal/pat2"
 	"golang.org/x/time/rate"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
-	"log"
 )
 
-const RETELIMIT_DIR = "/plugins-local/src/github.com/kav789/traefik-ratelimit/cfg"
-//const RETELIMIT_DIR = "/plugins-local/src/gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit/cfg"
+const RETELIMIT_DIR = "/plugins-local/src/gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit/cfg"
 const RETELIMIT_NAME = "ratelimit.json"
 const DEBUG = false
 
@@ -29,11 +26,11 @@ func CreateConfig() *Config {
 }
 
 type Config struct {
-	KeeperRateLimitKey  string        `json:"keeperRateLimitKey,omitempty"`
-	KeeperURL           string        `json:"keeperURL,omitempty"`
-	KeeperReqTimeout    string        `json:"keeperReqTimeout,omitempty"`
-	KeeperAdminPassword string        `json:"keeperAdminPassword,omitempty"`
-	RatelimitPath       string        `json:"ratelimitPath,omitempty"`
+	KeeperRateLimitKey  string `json:"keeperRateLimitKey,omitempty"`
+	KeeperURL           string `json:"keeperURL,omitempty"`
+	KeeperReqTimeout    string `json:"keeperReqTimeout,omitempty"`
+	KeeperAdminPassword string `json:"keeperAdminPassword,omitempty"`
+	RatelimitPath       string `json:"ratelimitPath,omitempty"`
 }
 
 type rule struct {
@@ -64,20 +61,19 @@ type limits struct {
 }
 
 type RateLimit struct {
-	name     string
-	next     http.Handler
-	cnt    *int32
-	l      *log.Logger
+	name string
+	next http.Handler
+	cnt  *int32
+	l    *log.Logger
 }
-
 
 type GlobalRateLimit struct {
 	config   *Config
 	version  *keeper.Resp
 	settings keeper.Settings
-	umtx   sync.Mutex
-	mtx    sync.RWMutex
-	limits *limits
+	umtx     sync.Mutex
+	mtx      sync.RWMutex
+	limits   *limits
 }
 
 var grl *GlobalRateLimit
@@ -89,7 +85,7 @@ func init() {
 			mlimits: make(map[rule]*limit),
 			pats:    make([][]pat.Pat, 0),
 		},
-		version:  &keeper.Resp{},
+		version: &keeper.Resp{},
 	}
 	grl.configure(CreateConfig())
 	err := grl.setFromSettings()
@@ -105,8 +101,8 @@ func init() {
 		ticker := time.NewTicker(30 * time.Second)
 		for {
 			select {
-//			case <-ctx.Done():
-//				return
+			//			case <-ctx.Done():
+			//				return
 			case <-ticker.C:
 				err := grl.setFromSettings()
 				if err != nil {
@@ -117,7 +113,7 @@ func init() {
 	}()
 
 	locallog("init")
-	
+
 }
 
 // New created a new plugin.
@@ -145,7 +141,6 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 	return r, nil
 }
 
-
 func (g *GlobalRateLimit) configure(config *Config) {
 	to := 300 * time.Second
 	if du, err := time.ParseDuration(string(config.KeeperReqTimeout)); err == nil {
@@ -154,7 +149,7 @@ func (g *GlobalRateLimit) configure(config *Config) {
 	g.umtx.Lock()
 	defer g.umtx.Unlock()
 	g.settings = keeper.New(config.KeeperURL, to, config.KeeperAdminPassword)
-	g.config   = config
+	g.config = config
 }
 
 func NewRateLimit(next http.Handler, config *Config, name string) *RateLimit {
@@ -163,9 +158,9 @@ func NewRateLimit(next http.Handler, config *Config, name string) *RateLimit {
 
 func newRateLimit(next http.Handler, config *Config, name string) *RateLimit {
 	r := &RateLimit{
-		name:     name,
-		next:     next,
-		cnt:      new(int32),
+		name: name,
+		next: next,
+		cnt:  new(int32),
 	}
 	grl.configure(config)
 	err := grl.setFromSettings()
