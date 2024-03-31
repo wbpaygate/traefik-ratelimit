@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func (r *RateLimit) update2(b []byte) error {
+func (g *GlobalRateLimit) update(b []byte) error {
 	type climit struct {
 		Rules []rule     `json:"rules"`
 		Limit rate.Limit `json:"limit"`
@@ -24,14 +24,13 @@ func (r *RateLimit) update2(b []byte) error {
 	if err := json.Unmarshal(b, &clim); err != nil {
 		return err
 	}
-//	fmt.Println(clim)
+//	locallog("update2 ", clim)
 
 	ep2 := make(map[rule]struct{}, len(clim.Limits))
 	i2lim := make([]*limit, len(clim.Limits))
 	lim2cnt := make(map[*limit]int, len(clim.Limits))
 
-	//	oldlim := (*limits)(atomic.LoadPointer(&r.limits))
-	oldlim := r.limits
+	oldlim := g.limits
 
 	for _, l := range oldlim.mlimits {
 		lim2cnt[l] = lim2cnt[l] + 1
@@ -44,6 +43,7 @@ func (r *RateLimit) update2(b []byte) error {
 		j2, f := 0, true
 		var l *limit
 		for i2 := 0; i2 < len(rules); i2++ {
+
 			if len(rules[i2].HeaderKey) == 0 || len(rules[i2].HeaderVal) == 0 {
 				rules[i2].HeaderKey = ""
 				rules[i2].HeaderVal = ""
@@ -94,7 +94,7 @@ func (r *RateLimit) update2(b []byte) error {
 	}
 	clim.Limits = clim.Limits[:j]
 
-	log(fmt.Sprintf("use %d limits", len(clim.Limits)))
+	locallog(fmt.Sprintf("use %d limits", len(clim.Limits)))
 
 	if len(clim.Limits) == fcnt && fcnt == len(lim2cnt) {
 		for i, l := range clim.Limits {
@@ -172,11 +172,8 @@ limloop2:
 		}
 
 	}
-
-	r.mtx.Lock()
-	defer r.mtx.Unlock()
-	r.limits = newlim
-	//	atomic.StorePointer(&r.limits, unsafe.Pointer(&newlim))
-
+	g.mtx.Lock()
+	defer g.mtx.Unlock()
+	g.limits = newlim
 	return nil
 }

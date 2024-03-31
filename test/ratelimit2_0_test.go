@@ -1,25 +1,21 @@
 package traefik_ratelimit_test
 
 import (
-	//	"fmt"
-	//	"encoding/json"
 //	ratelimit "github.com/kav789/traefik-ratelimit"
 	ratelimit "gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit"
 	"net/http"
 	"testing"
-	// "time"
 )
 
 type testdata struct {
-	uri  string
-	head map[string]string
-	res  bool
+	uri   string
+	head  map[string]string
+	uri2  string
+	head2 map[string]string
+	res   bool
 }
 
-func Test_Allow1(t *testing.T) {
-	if ratelimit.VER != 1 {
-		return
-	}
+func Test_Allow2(t *testing.T) {
 
 	cases := []struct {
 		name  string
@@ -32,12 +28,24 @@ func Test_Allow1(t *testing.T) {
 			conf: `
 {
   "limits": [
-    {"endpointpat": "/api/v3/methods1",     "limit": 1},
-    {"endpointpat": "/api/v2/methods",         "limit": 1},
-    {"endpointpat": "/api/v2/methods",         "limit": 2},
-    {"endpointpat": "/api/v2/**/methods",     "headerkey": "aa-bb", "headerval": "AsdfG", "limit": 1},
-    {"endpointpat": "/api/v2/**/methods",     "headerkey": "aa-bb", "headerval": "asdfG", "limit": 1},
-    {"endpointpat": "/api/v2/*/aa/**/methods", "limit": 1}
+    {"rules":[{"endpointpat": "/$"}],       "limit": 1}
+  ]
+}`,
+			//    {"endpointpat": "/api/v2/**/methods",      "limit": 1},
+			res: true,
+		},
+
+		{
+			name: "t1",
+			conf: `
+{
+  "limits": [
+    {"rules":[{"endpointpat": "/api/v3/methods1"}],       "limit": 1},
+    {"rules":[{"endpointpat": "/api/v2/methods"}],         "limit": 1},
+    {"rules":[{"endpointpat": "/api/v2/methods"}],         "limit": 2},
+    {"rules":[{"endpointpat": "/api/v2/**/methods",     "headerkey": "aa-bb", "headerval": "AsdfG"}], "limit": 1},
+    {"rules":[{"endpointpat": "/api/v2/**/methods",     "headerkey": "aa-bb", "headerval": "asdfG"}], "limit": 1},
+    {"rules":[{"endpointpat": "/api/v2/*/aa/**/methods"}], "limit": 1}
   ]
 }`,
 			//    {"endpointpat": "/api/v2/**/methods",      "limit": 1},
@@ -50,7 +58,6 @@ func Test_Allow1(t *testing.T) {
 				},
 				testdata{
 					uri: "https://aa.bb/api/v2/aaa/aaa/methods",
-
 					res: true,
 				},
 				testdata{
@@ -90,11 +97,10 @@ func Test_Allow1(t *testing.T) {
 
 {
   "limits": [
-    {"endpointpat": "/api/v3/methods/aa$",  "limit": 1},
-    {"endpointpat": "/api/v3/methods1",     "limit": 1},
-    {"endpointpat": "/api/v2/**/methods",   "limit": 1},
-    {"endpointpat": "/api/v2/**/methods",     "headerkey": "aa-bb", "headerval": "AsdfG", "limit": 1}
-
+    {"rules":[{"endpointpat": "/api/v3/methods/aa$"}],  "limit": 1},
+    {"rules":[{"endpointpat": "/api/v3/methods1"}],     "limit": 1},
+    {"rules":[{"endpointpat": "/api/v2/**/methods"}],   "limit": 1},
+    {"rules":[{"endpointpat": "/api/v2/**/methods",     "headerkey": "aa-bb", "headerval": "AsdfG"}], "limit": 1}
   ]
 }
 `,
@@ -130,7 +136,9 @@ func Test_Allow1(t *testing.T) {
 		},
 	}
 
-	cfg := &ratelimit.Config{}
+	cfg := &ratelimit.Config{
+		RatelimitPath: "./cfg/ratelimit.json",
+	}
 	var h http.Handler
 
 	rl := ratelimit.NewRateLimit(h, cfg, "test")
@@ -150,10 +158,10 @@ func Test_Allow1(t *testing.T) {
 					return
 				}
 			}
+/*
 
-			/*
 				for _, d := range tc.tests {
-					req, err := prepreq(d)
+					req, err := prepreq(d.uri, d,head)
 					if err != nil {
 						panic(err)
 					}
@@ -161,24 +169,33 @@ func Test_Allow1(t *testing.T) {
 					if !rl.Allow(req) {
 						t.Errorf("first %s %v expected true", d.uri, d.head)
 					}
+
+					if len(d.uri2) != 0 {
+						req, err = prepreq(d.uri2, d.head2)
+						if err != nil {
+							panic(err)
+						}
+					}
+
 					r := rl.Allow(req)
 					if r != d.res {
 						t.Errorf("%s %v expected %v", d.uri, d.head, d.res)
 					}
 					time.Sleep(1 * time.Second)
 				}
-			*/
+*/
 		})
+		break
 	}
 }
 
-func prepreq(d testdata) (*http.Request, error) {
-	req, err := http.NewRequest("GET", d.uri, nil)
+func prepreq(uri string, head map[string]string) (*http.Request, error) {
+	req, err := http.NewRequest("GET", uri, nil)
 	if err != nil {
 		return nil, err
 	}
-	if d.head != nil {
-		for k, v := range d.head {
+	if head != nil {
+		for k, v := range head {
 			req.Header.Set(k, v)
 		}
 	}
