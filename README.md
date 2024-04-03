@@ -1,38 +1,3 @@
-### Local Mode
-
-
-The plugins must be placed in `./plugins-local` directory,
-which should be in the working directory of the process running the Traefik binary.
-The source code of the plugin should be organized as follows:
-
-```
- └── plugins-local
-    └── src
-        └── gitlab-private.wildberries.ru
-            └── wbpay-go
-                └── traefik-ratelimit
-                    ├── main.go
-                    ├── go.mod
-                    └── ...
-```
-
-middleware:
-
-```
-apiVersion: traefik.containo.us/v1alpha1
-kind: Middleware
-metadata:
-  name: traefik-ratelimit
-  namespace: traefik-v2
-spec:
-  plugin:
-    ratelimit:
-      keeperRateLimitKey: ratelimits
-      keeperURL: http://keeper-ext.wbpay.svc.k8s.wbpay-dev:8080
-      keeperAdminPassword: pas$W0rd
-```
-
-
 rate limit config keeper:
 
 ```
@@ -84,11 +49,54 @@ rate limit config keeper:
   далее повторять данные действия изменяя настройки и отправляемые запросы и частоту отправки запросов
 
 
+Тестовые кейсы:
+  - сделать првыила и посмотреть что срабатывают так как положено
+  - сделать правило и в момент работы изменить по правилу лимит посмотреть что лимит по запросам изменился без перебоев, то есть нет запросов не получивших ответа
+    поошибке передачи итп
+  - померить какое максиматьное количество запросов вообще возможно обработать без перебоев когда на каждый запрос приходит либо положительный ответ дибо отрицательный
+    и нет запросов без ответа или с ошибкой ввода вывода
+
 
 
 
 настройки kubectl
 чтобы не забыть
+
+
+### Local Mode
+
+
+The plugins must be placed in `./plugins-local` directory,
+which should be in the working directory of the process running the Traefik binary.
+The source code of the plugin should be organized as follows:
+
+```
+ └── plugins-local
+    └── src
+        └── gitlab-private.wildberries.ru
+            └── wbpay-go
+                └── traefik-ratelimit
+                    ├── main.go
+                    ├── go.mod
+                    └── ...
+```
+
+middleware:
+
+```
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: traefik-ratelimit
+  namespace: traefik-v2
+spec:
+  plugin:
+    ratelimit:
+      keeperRateLimitKey: ratelimits
+      keeperURL: http://keeper-ext.wbpay.svc.k8s.wbpay-dev:8080
+      keeperAdminPassword: pas$W0rd
+```
+
 
 ingress:
 
