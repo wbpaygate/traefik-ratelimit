@@ -20,6 +20,8 @@ The source code of the plugin should be organized as follows:
 
 middleware:
 
+k edit middleware traefik-ratelimit -n traefik-v2
+
 ```
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
@@ -32,8 +34,11 @@ spec:
       keeperRateLimitKey: ratelimits
       keeperURL: http://keeper-ext.wbpay.svc.k8s.wbpay-dev:8080
       keeperAdminPassword: pas$W0rd
-```
+      keeperReqTimeout: 300s
+      ratelimitPath: ../cfg/ratelimit.json
+      keeperReloadInterval: 30s
 
+```
 
 ingress:
 
@@ -42,19 +47,6 @@ ingress:
         - name: traefik-ratelimit
         namespace: traefik-v2
 ```
-
-
-parameters:
-
-```
-  - keeperRateLimitKey=ratelimits
-  - keeperURL=http://keeper:8080
-  - keeperAdminPassword=Pa$sw0rd
-  - keeperReqTimeout=300s
-  - ratelimitPath=cfg/ratelimit.json
-
-```
-
 
 pvc:
 
