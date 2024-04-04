@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	//	"github.com/kav789/traefik-ratelimit/internal/keeper"
+	//	"github.com/kav789/traefik-ratelimit/internal/pat2"
 	"gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit/internal/keeper"
 	"gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit/internal/pat2"
 	"golang.org/x/time/rate"
@@ -15,6 +17,7 @@ import (
 	"time"
 )
 
+//const RETELIMIT_DIR = "/plugins-local/src/github.com/kav789/traefik-ratelimit/cfg"
 const RETELIMIT_DIR = "/plugins-local/src/gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit/cfg"
 const RETELIMIT_NAME = "ratelimit.json"
 const DEBUG = false
@@ -34,9 +37,9 @@ type Config struct {
 }
 
 type rule struct {
-	EndpointPat string `json:"endpointpat"`
-	HeaderKey   string `json:"headerkey"`
-	HeaderVal   string `json:"headerval"`
+	UrlPathPattern string `json:"urlpathpattern"`
+	HeaderKey      string `json:"headerkey"`
+	HeaderVal      string `json:"headerval"`
 }
 
 type limit struct {

@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit/internal/keeper"
-	"gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit/internal/keeperclient"
+	//	"github.com/kav789/traefik-ratelimit/internal/keeper"
+	//	"github.com/kav789/traefik-ratelimit/internal/keeperclient"
 	"net/http"
 	"os"
 	"os/exec"
@@ -13,6 +13,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit/internal/keeper"
+	"gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit/internal/keeperclient"
 )
 
 const url = "http://nginx.k8s.local"
@@ -34,11 +36,11 @@ func main() {
 	}
 
 	//    {"rules":[
-	//              {"endpointpat": "/api/v2/**/methods",     "headerkey": "aa-bb", "headerval": "AsdfG"},
-	//              {"endpointpat": "/api/v3/**/methods",     "headerkey": "aa-bb", "headerval": "Asdfm"}
+	//              {"urlpathpattern": "/api/v2/**/methods",     "headerkey": "aa-bb", "headerval": "AsdfG"},
+	//              {"urlpathpattern": "/api/v3/**/methods",     "headerkey": "aa-bb", "headerval": "Asdfm"}
 	//             ], "limit": 50},
-	//    {"rules":[{"endpointpat": "/api/v2/**/methods",     "headerkey": "aa-Bb", "headerval": "AsdfG"}], "limit": 100},
-	//    {"rules":[{"endpointpat": "/api/v2/*/aa/**/methods"}], "limit": 20}
+	//    {"rules":[{"urlpathpattern": "/api/v2/**/methods",     "headerkey": "aa-Bb", "headerval": "AsdfG"}], "limit": 100},
+	//    {"rules":[{"urlpathpattern": "/api/v2/*/aa/**/methods"}], "limit": 20}
 
 	cases := []struct {
 		name  string
@@ -50,8 +52,8 @@ func main() {
 			conf: `
 {
   "limits": [
-    {"rules":[{"endpointpat": "/api/v2/**/methods",  "headerkey": "aa-bb", "headerval": "AsdfG" } ],       "limit": 10},
-    {"rules":[{"endpointpat": "/api/v2/**/methods",  "headerkey": "aa-bb", "headerval": "AsdfW" } ],       "limit": 5}
+    {"rules":[{"urlpathpattern": "/api/v2/**/methods",  "headerkey": "aa-bb", "headerval": "AsdfG" } ],       "limit": 10},
+    {"rules":[{"urlpathpattern": "/api/v2/**/methods",  "headerkey": "aa-bb", "headerval": "AsdfW" } ],       "limit": 5}
   ]
 }
 `,
@@ -67,9 +69,9 @@ func main() {
 			conf: `
 {
   "limits": [
-    {"rules":[{"endpointpat": "/api/v3/methods/aa$"}],  "limit": 1},
-    {"rules":[{"endpointpat": "/api/v3/methods1"}],     "limit": 1},
-    {"rules":[{"endpointpat": "/api/v2/**/methods"}],   "limit": 1} 
+    {"rules":[{"urlpathpattern": "/api/v3/methods/aa$"}],  "limit": 1},
+    {"rules":[{"urlpathpattern": "/api/v3/methods1"}],     "limit": 1},
+    {"rules":[{"urlpathpattern": "/api/v2/**/methods"}],   "limit": 1} 
   ]
 }
 `,

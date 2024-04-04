@@ -3,6 +3,9 @@ package traefik_ratelimit_test
 import (
 	"context"
 	"fmt"
+	//	ratelimit "github.com/kav789/traefik-ratelimit"
+	//	"github.com/kav789/traefik-ratelimit/internal/keeperclient"
+	"encoding/json"
 	ratelimit "gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit"
 	"gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit/internal/keeperclient"
 	"net/http"
@@ -29,18 +32,36 @@ func Test_Limit2(t *testing.T) {
 			conf: `
 {
   "limits": [
-    {"rules":[{"endpointpat": "/api/v2/methods"}],         "limit": 1},
-    {"rules":[{"endpointpat": "/api/v2/methods"}],         "limit": 2},
+    {"rules":[{"urlpathpattern": "/api/v2/methods"}],         "limit": 1},
+    {"rules":[{"urlpathpattern": "/api/v2/methods"}],         "limit": 2},
     {"rules":[
-              {"endpointpat": "/api/v2/**/methods",     "headerkey": "aa-bb", "headerval": "AsdfG"},
-              {"endpointpat": "/api/v3/**/methods",     "headerkey": "aa-bb", "headerval": "Asdfm"}
+              {"urlpathpattern": "/api/v2/**/methods",     "headerkey": "aa-bb", "headerval": "AsdfG"},
+              {"urlpathpattern": "/api/v3/**/methods",     "headerkey": "aa-bb", "headerval": "Asdfm"}
              ], "limit": 1},
-    {"rules":[{"endpointpat": "/api/v2/**/methods",     "headerkey": "aa-Bb", "headerval": "AsdfG"}], "limit": 1},
-    {"rules":[{"endpointpat": "/api/v2/*/aa/**/methods"}], "limit": 1}
+    {"rules":[{"urlpathpattern": "/api/v2/**/methods",     "headerkey": "aa-Bb", "headerval": "AsdfG"}], "limit": 1},
+    {"rules":[{"urlpathpattern": "/api/v2/*/aa/**/methods"}], "limit": 1},
+
+    {"rules":[{"urlpathpattern": "",                       "headerkey": "cc-bb", "headerval": "AsdfGh"}], "limit": 1}
+
   ]
 }`,
 
 			tests: []testdata{
+				testdata{
+					uri: "https://aa.bb/api",
+					head: map[string]string{
+						"cc-bb": "asdfgh",
+					},
+					res: false,
+				},
+				testdata{
+					uri: "https://aa.bb/api/v2",
+					head: map[string]string{
+						"cc-bb": "asdfgh",
+					},
+					res: false,
+				},
+
 				testdata{
 					uri: "https://aa.bb/task",
 					res: true,
@@ -102,9 +123,9 @@ func Test_Limit2(t *testing.T) {
 			conf: `
 {
   "limits": [
-    {"rules":[{"endpointpat": "/api/v3/methods/aa$"}],  "limit": 1},
-    {"rules":[{"endpointpat": "/api/v3/methods1"}],     "limit": 1},
-    {"rules":[{"endpointpat": "/api/v2/**/methods"}],   "limit": 1} 
+    {"rules":[{"urlpathpattern": "/api/v3/methods/aa$"}],  "limit": 1},
+    {"rules":[{"urlpathpattern": "/api/v3/methods1"}],     "limit": 1},
+    {"rules":[{"urlpathpattern": "/api/v2/**/methods"}],   "limit": 1} 
   ]
 }
 `,
@@ -168,6 +189,12 @@ func Test_Limit2(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			var tst interface{}
+
+			if err := json.Unmarshal([]byte(tc.conf), &tst); err != nil {
+				t.Fatal("init json:", err)
+			}
+
 			err = kc.Set(keeperclient.KeeperData{
 				Key:         keeper_key,
 				Description: "ratelimiter",

@@ -1,9 +1,11 @@
 package traefik_ratelimit_test
 
 import (
+	//	ratelimit "github.com/kav789/traefik-ratelimit"
 	ratelimit "gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit"
 	"net/http"
 	"testing"
+	"time"
 )
 
 type testdata struct {
@@ -15,7 +17,6 @@ type testdata struct {
 }
 
 func Test_Allow2(t *testing.T) {
-
 	cases := []struct {
 		name  string
 		conf  string
@@ -27,11 +28,21 @@ func Test_Allow2(t *testing.T) {
 			conf: `
 {
   "limits": [
-    {"rules":[{"endpointpat": "/$"}],       "limit": 1}
+    {"rules":[{"urlpathpattern": "/$"}],       "limit": 1},
+    {"rules":[{"urlpathpattern": "",                       "headerkey": "CC-BB", "headerval": "AsdfGh"}], "limit": 1}
   ]
 }`,
-			//    {"endpointpat": "/api/v2/**/methods",      "limit": 1},
 			res: true,
+
+			tests: []testdata{
+				testdata{
+					uri: "https://aa.bb/api/v2/aaa/aaa/methods",
+					head: map[string]string{
+						"Cc-bB": "asdfgh",
+					},
+					res: false,
+				},
+			},
 		},
 
 		{
@@ -39,15 +50,17 @@ func Test_Allow2(t *testing.T) {
 			conf: `
 {
   "limits": [
-    {"rules":[{"endpointpat": "/api/v3/methods1"}],       "limit": 1},
-    {"rules":[{"endpointpat": "/api/v2/methods"}],         "limit": 1},
-    {"rules":[{"endpointpat": "/api/v2/methods"}],         "limit": 2},
-    {"rules":[{"endpointpat": "/api/v2/**/methods",     "headerkey": "aa-bb", "headerval": "AsdfG"}], "limit": 1},
-    {"rules":[{"endpointpat": "/api/v2/**/methods",     "headerkey": "aa-bb", "headerval": "asdfG"}], "limit": 1},
-    {"rules":[{"endpointpat": "/api/v2/*/aa/**/methods"}], "limit": 1}
+    {"rules":[{"urlpathpattern": "/api/v3/methods1"}],       "limit": 1},
+    {"rules":[{"urlpathpattern": "/api/v2/methods"}],         "limit": 1},
+    {"rules":[{"urlpathpattern": "/api/v2/methods"}],         "limit": 2},
+    {"rules":[{"urlpathpattern": "/api/v2/**/methods",     "headerkey": "aa-bb", "headerval": "AsdfG"}], "limit": 1},
+    {"rules":[{"urlpathpattern": "/api/v2/**/methods",     "headerkey": "aa-bb", "headerval": "asdfG"}], "limit": 1},
+    {"rules":[{"urlpathpattern": "/api/v2/*/aa/**/methods"}], "limit": 1},
+    {"rules":[{"urlpathpattern": "",                       "headerkey": "cc-bb", "headerval": "AsdfGh"}], "limit": 1}
+
   ]
 }`,
-			//    {"endpointpat": "/api/v2/**/methods",      "limit": 1},
+			//    {"urlpathpattern": "/api/v2/**/methods",      "limit": 1},
 			res: true,
 
 			tests: []testdata{
@@ -96,10 +109,10 @@ func Test_Allow2(t *testing.T) {
 
 {
   "limits": [
-    {"rules":[{"endpointpat": "/api/v3/methods/aa$"}],  "limit": 1},
-    {"rules":[{"endpointpat": "/api/v3/methods1"}],     "limit": 1},
-    {"rules":[{"endpointpat": "/api/v2/**/methods"}],   "limit": 1},
-    {"rules":[{"endpointpat": "/api/v2/**/methods",     "headerkey": "aa-bb", "headerval": "AsdfG"}], "limit": 1}
+    {"rules":[{"urlpathpattern": "/api/v3/methods/aa$"}],  "limit": 1},
+    {"rules":[{"urlpathpattern": "/api/v3/methods1"}],     "limit": 1},
+    {"rules":[{"urlpathpattern": "/api/v2/**/methods"}],   "limit": 1},
+    {"rules":[{"urlpathpattern": "/api/v2/**/methods",     "headerkey": "aa-bb", "headerval": "AsdfG"}], "limit": 1}
   ]
 }
 `,
@@ -136,7 +149,7 @@ func Test_Allow2(t *testing.T) {
 	}
 
 	cfg := &ratelimit.Config{
-		RatelimitPath: "./cfg/ratelimit.json",
+		RatelimitPath: "../cfg/ratelimit.json",
 	}
 	var h http.Handler
 
@@ -146,45 +159,44 @@ func Test_Allow2(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			if len(tc.conf) > 0 {
-				err = rl.Update([]byte(tc.conf))
-				if tc.res && err != nil {
-					t.Errorf("setFromFile expect nil error but: %v", err)
-					return
-				}
-				if !tc.res && err == nil {
-					t.Errorf("setFromFile expect error but: nil")
-					return
-				}
+			if len(tc.conf) == 0 {
+				return
 			}
-			/*
+			err = rl.Update([]byte(tc.conf))
+			if tc.res && err != nil {
+				t.Errorf("setFromFile expect nil error but: %v", err)
+				return
+			}
+			if !tc.res && err == nil {
+				t.Errorf("setFromFile expect error but: nil")
+				return
+			}
 
-				for _, d := range tc.tests {
-					req, err := prepreq(d.uri, d,head)
+			for _, d := range tc.tests {
+				req, err := prepreq(d.uri, d.head)
+				if err != nil {
+					panic(err)
+				}
+
+				if !rl.Allow(req) {
+					t.Errorf("first %s %v expected true", d.uri, d.head)
+				}
+
+				if len(d.uri2) != 0 {
+					req, err = prepreq(d.uri2, d.head2)
 					if err != nil {
 						panic(err)
 					}
-
-					if !rl.Allow(req) {
-						t.Errorf("first %s %v expected true", d.uri, d.head)
-					}
-
-					if len(d.uri2) != 0 {
-						req, err = prepreq(d.uri2, d.head2)
-						if err != nil {
-							panic(err)
-						}
-					}
-
-					r := rl.Allow(req)
-					if r != d.res {
-						t.Errorf("%s %v expected %v", d.uri, d.head, d.res)
-					}
-					time.Sleep(1 * time.Second)
 				}
-			*/
+
+				r := rl.Allow(req)
+				if r != d.res {
+					t.Errorf("%s %v expected %v", d.uri, d.head, d.res)
+				}
+				time.Sleep(1 * time.Second)
+			}
+
 		})
-		break
 	}
 }
 
