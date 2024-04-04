@@ -31,14 +31,14 @@ func (g *GlobalRateLimit) setFromSettings() error {
 
 	if result != nil && !g.version.Equal(result) {
 		if g.version != nil {
-			locallog("old configuration: ", g.version.Version, g.version.ModRevision)
+			locallog(fmt.Sprintf("old configuration: Version: %d, ModRevision: %d", g.version.Version, g.version.ModRevision))
 		}
 		err = g.update([]byte(result.Value))
 		if err != nil {
 			return err
 		}
 		g.version = result
-		locallog("new configuration loaded: ", g.version.Version, g.version.ModRevision)
+		locallog(fmt.Sprintf("new configuration loaded: Version: %d, ModRevision: %d", g.version.Version, g.version.ModRevision))
 	}
 	return nil
 }

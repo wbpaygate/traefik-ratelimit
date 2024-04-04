@@ -3,6 +3,7 @@ package traefik_ratelimit
 import (
 	"encoding/json"
 	"fmt"
+	//	"github.com/kav789/traefik-ratelimit/internal/pat2"
 	"gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit/internal/pat2"
 	"golang.org/x/time/rate"
 	"net/http"
@@ -23,7 +24,6 @@ func (g *GlobalRateLimit) update(b []byte) error {
 	if err := json.Unmarshal(b, &clim); err != nil {
 		return err
 	}
-	//	locallog("update2 ", clim)
 
 	ep2 := make(map[rule]struct{}, len(clim.Limits))
 	i2lim := make([]*limit, len(clim.Limits))
@@ -47,9 +47,10 @@ func (g *GlobalRateLimit) update(b []byte) error {
 				rules[i2].HeaderKey = ""
 				rules[i2].HeaderVal = ""
 			}
-			if len(rules[i2].EndpointPat) == 0 && len(rules[i2].HeaderKey) == 0 && len(rules[i2].HeaderVal) == 0 {
+			if len(rules[i2].UrlPathPattern) == 0 && len(rules[i2].HeaderKey) == 0 && len(rules[i2].HeaderVal) == 0 {
 				continue
 			}
+
 			if len(rules[i2].HeaderKey) != 0 {
 				rules[i2].HeaderKey = http.CanonicalHeaderKey(rules[i2].HeaderKey)
 			}
@@ -77,13 +78,11 @@ func (g *GlobalRateLimit) update(b []byte) error {
 			j2++
 		}
 		clim.Limits[i].Rules = rules[:j2]
-		//		fmt.Println(clim.Limits[i].Rules)
-
 		if len(clim.Limits[i].Rules) == 0 {
 			continue
 		}
 		if j != i {
-			clim.Limits[j].Limit = clim.Limits[i].Limit
+			clim.Limits[j] = clim.Limits[i]
 		}
 		if f && lim2cnt[l] == len(clim.Limits[i].Rules) {
 			i2lim[j] = l
@@ -92,9 +91,7 @@ func (g *GlobalRateLimit) update(b []byte) error {
 		j++
 	}
 	clim.Limits = clim.Limits[:j]
-
 	locallog(fmt.Sprintf("use %d limits", len(clim.Limits)))
-
 	if len(clim.Limits) == fcnt && fcnt == len(lim2cnt) {
 		for i, l := range clim.Limits {
 			l2 := i2lim[i]
@@ -122,10 +119,9 @@ limloop2:
 				limiter: rate.NewLimiter(l.Limit, 1),
 			}
 		}
-
 		for _, rl := range l.Rules {
 			newlim.mlimits[rl] = lim
-			p, ipt, err := pat.Compilepat(rl.EndpointPat)
+			p, ipt, err := pat.Compilepat(rl.UrlPathPattern)
 			if err != nil {
 				return err
 			}

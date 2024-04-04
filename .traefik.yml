@@ -1,5 +1,6 @@
 displayName: Rate Limit
 type: middleware
+#import: github.com/kav789/traefik-ratelimit
 import: gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit
 summary: Rate Limit
 testData:
