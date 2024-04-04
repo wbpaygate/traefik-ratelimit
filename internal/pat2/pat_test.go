@@ -51,7 +51,7 @@ func Test_pat(t *testing.T) {
 
 		{
 			name: "t1",
-			p:    "/api/v2/**/methods",
+			p:    "/api/v2/**/methods$",
 			res:  true,
 			tests: []testdata{
 				testdata{uri: "/task", res: false},
