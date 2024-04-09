@@ -1,4 +1,4 @@
-module gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit
+module github.com/wbpaygate/traefik-ratelimit
 
 go 1.21
 

@@ -1,5 +1,0 @@
-{
-  "limits": [
-    {"rules":[{"urlpathpattern": "/$"}], "limit": 1}
-  ]
-}
