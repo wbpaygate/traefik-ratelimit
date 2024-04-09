@@ -3,8 +3,7 @@ package traefik_ratelimit
 import (
 	"encoding/json"
 	"fmt"
-	//	"github.com/kav789/traefik-ratelimit/internal/pat2"
-	"gitlab-private.wildberries.ru/wbpay-go/traefik-ratelimit/internal/pat2"
+	"github.com/wbpaygate/traefik-ratelimit/internal/pat2"
 	"golang.org/x/time/rate"
 	"net/http"
 	"strings"
@@ -25,6 +24,10 @@ func (g *GlobalRateLimit) update(b []byte) error {
 		return err
 	}
 
+	if clim.Limits == nil {
+		return fmt.Errorf("limits is required")
+	}
+
 	ep2 := make(map[rule]struct{}, len(clim.Limits))
 	i2lim := make([]*limit, len(clim.Limits))
 	lim2cnt := make(map[*limit]int, len(clim.Limits))
@@ -39,10 +42,16 @@ func (g *GlobalRateLimit) update(b []byte) error {
 
 	for i := 0; i < len(clim.Limits); i++ {
 		rules := clim.Limits[i].Rules
+		if rules == nil {
+			return fmt.Errorf("limits.%d: rules is required", i)
+		}
+		if clim.Limits[i].Limit <= 0 {
+			return fmt.Errorf("limits.%d: limit <= 0", i)
+		}
+
 		j2, f := 0, true
 		var l *limit
 		for i2 := 0; i2 < len(rules); i2++ {
-
 			if len(rules[i2].HeaderKey) == 0 || len(rules[i2].HeaderVal) == 0 {
 				rules[i2].HeaderKey = ""
 				rules[i2].HeaderVal = ""
@@ -50,7 +59,6 @@ func (g *GlobalRateLimit) update(b []byte) error {
 			if len(rules[i2].UrlPathPattern) == 0 && len(rules[i2].HeaderKey) == 0 && len(rules[i2].HeaderVal) == 0 {
 				continue
 			}
-
 			if len(rules[i2].HeaderKey) != 0 {
 				rules[i2].HeaderKey = http.CanonicalHeaderKey(rules[i2].HeaderKey)
 			}
@@ -85,6 +93,10 @@ func (g *GlobalRateLimit) update(b []byte) error {
 			clim.Limits[j] = clim.Limits[i]
 		}
 		if f && lim2cnt[l] == len(clim.Limits[i].Rules) {
+			if l.Limit != clim.Limits[j].Limit {
+				l.limiter.SetLimit(clim.Limits[j].Limit)
+				l.Limit = clim.Limits[j].Limit
+			}
 			i2lim[j] = l
 			fcnt++
 		}
@@ -92,15 +104,8 @@ func (g *GlobalRateLimit) update(b []byte) error {
 	}
 	clim.Limits = clim.Limits[:j]
 	locallog(fmt.Sprintf("use %d limits", len(clim.Limits)))
+
 	if len(clim.Limits) == fcnt && fcnt == len(lim2cnt) {
-		for i, l := range clim.Limits {
-			l2 := i2lim[i]
-			if l2.Limit == l.Limit {
-				continue
-			}
-			l2.limiter.SetLimit(l.Limit)
-			l2.Limit = l.Limit
-		}
 		return nil
 	}
 
@@ -121,11 +126,13 @@ limloop2:
 		}
 		for _, rl := range l.Rules {
 			newlim.mlimits[rl] = lim
+
 			p, ipt, err := pat.Compilepat(rl.UrlPathPattern)
 			if err != nil {
 				return err
 			}
 			newlim.pats = pat.Appendpat(newlim.pats, ipt)
+
 			lim2, ok := newlim.limits[p]
 			if !ok {
 				if len(rl.HeaderKey) == 0 {
