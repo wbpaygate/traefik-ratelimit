@@ -4,15 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/wbpaygate/traefik-ratelimit/internal/pat2"
-	"golang.org/x/time/rate"
+	"github.com/wbpaygate/traefik-ratelimit/internal/rate"
 	"net/http"
 	"strings"
+	"sync/atomic"
 )
 
 func (g *GlobalRateLimit) update(b []byte) error {
 	type climit struct {
-		Rules []rule     `json:"rules"`
-		Limit rate.Limit `json:"limit"`
+		Rules []rule `json:"rules"`
+		Limit int    `json:"limit"`
 	}
 
 	type conflimits struct {
@@ -31,8 +32,10 @@ func (g *GlobalRateLimit) update(b []byte) error {
 	ep2 := make(map[rule]struct{}, len(clim.Limits))
 	i2lim := make([]*limit, len(clim.Limits))
 	lim2cnt := make(map[*limit]int, len(clim.Limits))
+	useful := make(map[*limit]struct{}, len(clim.Limits))
 
-	oldlim := g.limits
+	curlimit := int(atomic.LoadInt32(g.curlimit))
+	oldlim := g.limits[curlimit]
 
 	for _, l := range oldlim.mlimits {
 		lim2cnt[l] = lim2cnt[l] + 1
@@ -48,7 +51,6 @@ func (g *GlobalRateLimit) update(b []byte) error {
 		if clim.Limits[i].Limit <= 0 {
 			return fmt.Errorf("limits.%d: limit <= 0", i)
 		}
-
 		j2, f := 0, true
 		var l *limit
 		for i2 := 0; i2 < len(rules); i2++ {
@@ -98,12 +100,19 @@ func (g *GlobalRateLimit) update(b []byte) error {
 				l.Limit = clim.Limits[j].Limit
 			}
 			i2lim[j] = l
+			useful[l] = struct{}{}
 			fcnt++
 		}
 		j++
 	}
 	clim.Limits = clim.Limits[:j]
 	locallog(fmt.Sprintf("use %d limits", len(clim.Limits)))
+
+	for _, l := range oldlim.mlimits {
+		if _, ok := useful[l]; !ok {
+			l.limiter.Close()
+		}
+	}
 
 	if len(clim.Limits) == fcnt && fcnt == len(lim2cnt) {
 		return nil
@@ -121,7 +130,7 @@ limloop2:
 		if lim == nil {
 			lim = &limit{
 				Limit:   l.Limit,
-				limiter: rate.NewLimiter(l.Limit, 1),
+				limiter: rate.NewLimiter(l.Limit),
 			}
 		}
 		for _, rl := range l.Rules {
@@ -174,8 +183,8 @@ limloop2:
 		}
 
 	}
-	g.mtx.Lock()
-	defer g.mtx.Unlock()
-	g.limits = newlim
+	curlimit = (curlimit + 1) % LIMITS
+	g.limits[curlimit] = newlim
+	atomic.StoreInt32(g.curlimit, int32(curlimit))
 	return nil
 }
