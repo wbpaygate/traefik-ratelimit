@@ -26,8 +26,7 @@ func NewLimiter(lim int) *Limiter {
 	*l.limit = int32(lim)
 	go func() {
 		for atomic.LoadInt32(l.close) == 0 {
-			i := time.Now().Second() % WINLEN
-			atomic.StoreInt32(l.win[(i+(WINLEN/2)+WINLEN)%WINLEN], atomic.LoadInt32(l.limit))
+			atomic.StoreInt32(l.win[(time.Now().Second()+(WINLEN/2))%WINLEN], atomic.LoadInt32(l.limit))
 			time.Sleep(time.Second)
 		}
 	}()
@@ -47,6 +46,5 @@ func (l *Limiter) Limit() int {
 }
 
 func (l *Limiter) Allow() bool {
-	i := time.Now().Second() % WINLEN
-	return atomic.AddInt32(l.win[i], -1) >= 0
+	return atomic.AddInt32(l.win[time.Now().Second()%WINLEN], -1) >= 0
 }
