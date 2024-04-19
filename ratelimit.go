@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/wbpaygate/traefik-ratelimit/internal/keeper"
 	"github.com/wbpaygate/traefik-ratelimit/internal/pat2"
-	"golang.org/x/time/rate"
+	"github.com/wbpaygate/traefik-ratelimit/internal/rate"
 	"log"
 	"net/http"
 	"os"
@@ -41,7 +41,7 @@ type rule struct {
 }
 
 type limit struct {
-	Limit   rate.Limit
+	Limit   int
 	limiter *rate.Limiter
 }
 
@@ -73,8 +73,8 @@ type GlobalRateLimit struct {
 	version   *keeper.Resp
 	settings  keeper.Settings
 	umtx      sync.Mutex
-	mtx       sync.RWMutex
-	limits    *limits
+	curlimit  *int32
+	limits    []*limits
 	rawlimits []byte
 	ticker    *time.Ticker
 	tickerto  time.Duration
@@ -83,17 +83,22 @@ type GlobalRateLimit struct {
 
 var grl *GlobalRateLimit
 
+const LIMITS = 5
+
 func init() {
 	grl = &GlobalRateLimit{
-		limits: &limits{
-			limits:  make(map[string]*limits2),
-			mlimits: make(map[rule]*limit),
-			pats:    make([][]pat.Pat, 0),
-		},
+		curlimit:  new(int32),
+		limits:    make([]*limits, LIMITS),
 		version:   &keeper.Resp{},
 		rawlimits: []byte(""),
 		icnt:      new(int32),
 	}
+	grl.limits[0] = &limits{
+		limits:  make(map[string]*limits2),
+		mlimits: make(map[rule]*limit),
+		pats:    make([][]pat.Pat, 0),
+	}
+
 	config := CreateConfig()
 	to := 30 * time.Second
 	if du, err := time.ParseDuration(string(config.KeeperReloadInterval)); err == nil {
@@ -183,14 +188,18 @@ func (g *GlobalRateLimit) configure(ctx context.Context, config *Config) {
 	g.config = config
 	err := grl.setFromSettings()
 	if err != nil {
-		kerr := err
+		if ctx == nil {
+			locallog(fmt.Sprintf("init0: keeper: %v. try init from middleware RatelimitData configuration", err))
+		} else {
+			locallog(fmt.Sprintf("init: keeper: %v. try init from middleware RatelimitData configuration", err))
+		}
 		err = grl.setFromData()
 		//		err = grl.setFromFile()
 		if err != nil {
 			if ctx == nil {
-				locallog(fmt.Sprintf("init0: keeper: %v data: %v", kerr, err))
+				locallog(fmt.Sprintf("init0: data: %v", err))
 			} else {
-				locallog(fmt.Sprintf("init: keeper: %v data: %v", kerr, err))
+				locallog(fmt.Sprintf("init: data: %v", err))
 			}
 		}
 	}
