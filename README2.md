@@ -20,7 +20,7 @@
         в любом правиле должны быть указан **urlpathpattern** и/или **headerkey** и **headerval**. 
         Например если значение **urlpathpattern** пустое, то спавнение производится только с **headerkey** и **headerval** и\
         наоборот если **headerkey** или **headerval** пустые, то сравнение производится только с **urlpathpattern**
-        если не пустые **urlpathpattern** и **headerkey** и **headerval** то спавнение производится по всем элементам вместе
+        если не пустые **urlpathpattern** и **headerkey** и **headerval** то сравнение производится по всем элементам вместе
         примеры правил:
           - {
                 "rules": [
