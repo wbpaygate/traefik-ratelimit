@@ -22,35 +22,42 @@
         наоборот если **headerkey** или **headerval** пустые, то сравнение производится только с **urlpathpattern**
         если не пустые **urlpathpattern** и **headerkey** и **headerval** то сравнение производится по всем элементам вместе
         примеры правил:
-          - ``` {
+          - ```
+            {
                 "rules": [
                   {"urlpathpattern": "/api/v2/merchants/*/users/*/payments/methods$"}
                 ],
                 "limit": 10000
             } ```
             лимит 10000 rps будет применен ко ВСЕМ ВМЕСТЕ запросам совпадаюшим с правилом имеющим вид патерна пути
-          - ``` {
+          - ``` 
+            {
                 "rules": [
                   {"urlpathpattern": "/api/v2/merchants/*/users/*/payments/methods$", "headerkey": "key", "headerval": "val" }
                 ],
                 "limit": 10000
-            } ```
+            }
+            ```
             лимит 10000 rps будет применен ко ВСЕМ ВМЕСТЕ запросам совпадаюшим с правилом имеющим вид патерна,
             если заголовок запроса имеет ключ "key" со значением "val" игнорируя регистр значения
-          - ``` {
+          - ```
+            {
                 "rules": [
                   {"urlpathpattern": "", "headerkey": "key", "headerval": "val" }
                 ],
                 "limit": 10000
-            } ```
+            }
+            ```
             лимит 10000 rps будет применен ко ВСЕМ ВМЕСТЕ запросам если заголовок запроса имеет ключ "key" со значением "val" игнорируя регистр значения
-          - ``` {
+          - ```
+            {
                 "rules": [
                   {"urlpathpattern": "/api/v2/merchants/*/users/*/payments/methods$"},
                   {"urlpathpattern": "/api/v1/merchants/*/users/*/payments/methods$"}
                 ],
                 "limit": 10000
-            } ``` 
+            }
+            ``` 
             лимит 10000 rps будет применен ко ВСЕМ ВМЕСТЕ запросам совпадаюшим с правилами имеющими вид патернов пути
 
 
