@@ -20,7 +20,7 @@
         в любом правиле должны быть указан **urlpathpattern** и/или **headerkey** и **headerval**. 
         Например если значение **urlpathpattern** пустое, то спавнение производится только с **headerkey** и **headerval** и\
         наоборот если **headerkey** или **headerval** пустые, то сравнение производится только с **urlpathpattern**
-        если не пустые **urlpathpattern** и **headerkey** и **headerval** то спавнение производится по всем элементам вместе
+        если не пустые **urlpathpattern** и **headerkey** и **headerval** то сравнение производится по всем элементам вместе
         примеры правил:
           - {
                 "rules": [
@@ -30,17 +30,17 @@
             } - лимит 10000 rps будет применен ко ВСЕМ ВМЕСТЕ запросам совпадаюшим с правилом имеющим вид патерна пути
           - {
                 "rules": [
-                  {"urlpathpattern": "/api/v2/merchants/*/users/*/payments/methods$", "headerkey": "", "headerval": "" }
+                  {"urlpathpattern": "/api/v2/merchants/*/users/*/payments/methods$", "headerkey": "key", "headerval": "val" }
                 ],
                 "limit": 10000
             } - лимит 10000 rps будет применен ко ВСЕМ ВМЕСТЕ запросам совпадаюшим с правилом имеющим вид патерна,
-                если заголовок запроса имеет ключ "" со значением ""
+                если заголовок запроса имеет ключ "key" со значением "val" игнорируя регистр значения
           - {
                 "rules": [
-                  {"urlpathpattern": "", "headerkey": "", "headerval": "" }
+                  {"urlpathpattern": "", "headerkey": "key", "headerval": "val" }
                 ],
                 "limit": 10000
-            } - лимит 10000 rps будет применен ко ВСЕМ ВМЕСТЕ запросам если заголовок запроса имеет ключ "" со значением ""
+            } - лимит 10000 rps будет применен ко ВСЕМ ВМЕСТЕ запросам если заголовок запроса имеет ключ "key" со значением "val" игнорируя регистр значения
           - {
                 "rules": [
                   {"urlpathpattern": "/api/v2/merchants/*/users/*/payments/methods$"},
