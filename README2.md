@@ -177,7 +177,7 @@ traefikMiddleware:
           "limits": [
             { 
               "rules": [
-                 {"urlpathpattern": "/api/v2/merchants/*/users/*/payments/methods$"},
+                 {"urlpathpattern": "/api/v2/merchants/*/users/*/payments/methods$"}
               ],
               "limit": 1000
             }
