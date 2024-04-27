@@ -129,6 +129,7 @@
      ```/api/v2/merchants/*/users/*/payments/methods$``` и ```/api/v1/merchants/*/users/*/payments/methods$```
    не будет превышать 10000 RPS/ Распределение соотношения лимитов для каждого из запросов будет рандомным 
 
+
    - ```
      { 
        "limits": [
