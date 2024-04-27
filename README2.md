@@ -176,21 +176,21 @@ traefikMiddleware:
       ratelimitData: |
         { 
           "limits": [
-         {
-           "rules": [
-             {"urlpathpattern": "/api/v2/merchants/*/users/*/payments/methods$"},
-           ],
-           "limit": 1000
-         },
+            {
+              "rules": [
+                {"urlpathpattern": "/api/v2/merchants/*/users/*/payments/methods$"},
+              ],
+              "limit": 1000
+            },
 
-         {
-           "rules": [
-             {"urlpathpattern": "/api/v2/merchants/*/users/*/payments/methods$"},
-             {"urlpathpattern": "/api/v1/merchants/*/users/*/payments/methods$"}
-           ],
-           "limit": 10000
-         }
-       ]
+            {
+              "rules": [
+                {"urlpathpattern": "/api/v2/merchants/*/users/*/payments/methods$"},
+                {"urlpathpattern": "/api/v1/merchants/*/users/*/payments/methods$"}
+              ],
+              "limit": 10000
+            }
+          ]
         }
 ```
 - *keeperRateLimitKey* - ключ в keeper, под которым хранится json конфигурация
