@@ -127,7 +127,7 @@
      }
      ``` 
      лимит 10000 rps будет применен ко всем запросам совпадаюшим с правилами имеющими вид патернов пути, то есть общее количество запросов имеющих паттерны
-     "/api/v2/merchants/*/users/*/payments/methods$" и "/api/v1/merchants/*/users/*/payments/methods$" не будет превышать 10000
+     ```/api/v2/merchants/*/users/*/payments/methods$``` и ```/api/v1/merchants/*/users/*/payments/methods$``` не будет превышать 10000
 
    - ```
      { 
@@ -149,9 +149,9 @@
        ]
      }
      ```
-     лимит 1000 rps будет применен к первому правилу с паттерном "/api/v2/merchants/*/users/*/payments/methods$".
+     лимит 1000 rps будет применен к первому правилу с паттерном ```/api/v2/merchants/*/users/*/payments/methods$```.
      т.к. во втором лимите присуствует правило идентичное правилу из перврго лимита, то оно будет проигнорировано и лимит 10000 будет применен только к правилу
-     с паттерном "/api/v1/merchants/*/users/*/payments/methods$"
+     с паттерном ```/api/v1/merchants/*/users/*/payments/methods$```
 
 
 
