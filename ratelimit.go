@@ -4,15 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/wbpaygate/traefik-ratelimit/internal/keeper"
-	"github.com/wbpaygate/traefik-ratelimit/internal/pat2"
-	"github.com/wbpaygate/traefik-ratelimit/internal/rate"
 	"log"
 	"net/http"
 	"os"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/wbpaygate/traefik-ratelimit/internal/keeper"
+	"github.com/wbpaygate/traefik-ratelimit/internal/pat2"
+	"github.com/wbpaygate/traefik-ratelimit/internal/rate"
 )
 
 const DEBUG = false
@@ -227,7 +228,7 @@ func (r *RateLimit) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusTooManyRequests)
-	_ = encoder.Encode(map[string]any{"status_code": http.StatusTooManyRequests, "message": "rate limit exceeded, try again later"})
+	_ = encoder.Encode(map[string]any{"error_code": "ERR_TOO_MANY_REQUESTS", "error_description": "Слишком много запросов. Повторите попытку позднее."})
 }
 
 func (r *RateLimit) log(v ...any) {
