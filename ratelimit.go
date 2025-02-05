@@ -129,7 +129,7 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 			l.Println("start")
 		}
 	}
-	locallog(fmt.Sprintf("config keeper key: %q, url: %q", config.KeeperRateLimitKey, config.KeeperURL))
+
 	if len(config.KeeperRateLimitKey) == 0 {
 		locallog("config: config: keeperRateLimitKey is empty")
 	}
