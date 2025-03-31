@@ -171,7 +171,6 @@ traefikMiddleware:
       keeperRateLimitKey: ratelimits
       keeperURL: https://keeper-ext-feature-wg-8238.k8s.dev.paywb.lan
       keeperReqTimeout: 100s
-      keeperAdminPassword: Pas$w0rd
       keeperReloadInterval: 45s
       ratelimitData: |
         { 

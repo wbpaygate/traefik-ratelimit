@@ -7,12 +7,16 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/wbpaygate/traefik-ratelimit/internal/keeper"
-	"github.com/wbpaygate/traefik-ratelimit/internal/pat2"
+	keeperSDK "gitlab-paygate.paywb.info/wbpay-go/packages/keeper-client/v2"
+	keeperTransport "gitlab-paygate.paywb.info/wbpay-go/packages/keeper-client/v2/transport"
+
+	loggerpkg "github.com/wbpaygate/traefik-ratelimit/internal/logger"
+	pat "github.com/wbpaygate/traefik-ratelimit/internal/pat2"
 	"github.com/wbpaygate/traefik-ratelimit/internal/rate"
 )
 
@@ -29,10 +33,9 @@ type Config struct {
 	KeeperRateLimitKey   string `json:"keeperRateLimitKey,omitempty"`
 	KeeperURL            string `json:"keeperURL,omitempty"`
 	KeeperReqTimeout     string `json:"keeperReqTimeout,omitempty"`
-	KeeperAdminPassword  string `json:"keeperAdminPassword,omitempty"`
+	KeeperReloadInterval string `json:"keeperReloadInterval,omitempty"`
 	RatelimitPath        string `json:"ratelimitPath,omitempty"`
 	RatelimitData        string `json:"ratelimitData,omitempty"`
-	KeeperReloadInterval string `json:"keeperReloadInterval,omitempty"`
 }
 
 type rule struct {
@@ -69,10 +72,21 @@ type RateLimit struct {
 	l    *log.Logger
 }
 
+type wrapLogger struct {
+	logger *loggerpkg.Logger
+}
+
+func (wl wrapLogger) Info(msg string) {
+	wl.logger.Info(nil, msg)
+}
+
+func (wl wrapLogger) Error(err error) {
+	wl.logger.Error(nil, err)
+}
+
 type GlobalRateLimit struct {
 	config    *Config
-	version   *keeper.Resp
-	settings  keeper.Settings
+	version   *keeperTransport.Value
 	umtx      sync.Mutex
 	curlimit  *int32
 	limits    []*limits
@@ -80,6 +94,28 @@ type GlobalRateLimit struct {
 	ticker    *time.Ticker
 	tickerto  time.Duration
 	icnt      *int32
+
+	keeperClient *keeperSDK.Client
+	wrapLogger   *wrapLogger
+}
+
+func (grl *GlobalRateLimit) GetSettings() (*keeperTransport.Value, error) {
+	val, err := grl.keeperClient.Get(nil, grl.config.KeeperRateLimitKey)
+	if err != nil {
+		return nil, err
+	}
+
+	grl.version = val
+
+	return val, nil
+}
+
+func (grl *GlobalRateLimit) EqualVersion(l *keeperTransport.Value) bool {
+	if grl == nil || l == nil {
+		return false
+	}
+
+	return l.Version == grl.version.Version && l.ModRevision == grl.version.ModRevision
 }
 
 var grl *GlobalRateLimit
@@ -90,10 +126,11 @@ func init() {
 	grl = &GlobalRateLimit{
 		curlimit:  new(int32),
 		limits:    make([]*limits, LIMITS),
-		version:   &keeper.Resp{},
+		version:   &keeperTransport.Value{},
 		rawlimits: []byte(""),
 		icnt:      new(int32),
 	}
+
 	grl.limits[0] = &limits{
 		limits:  make(map[string]*limits2),
 		mlimits: make(map[rule]*limit),
@@ -102,12 +139,14 @@ func init() {
 
 	config := CreateConfig()
 	to := 30 * time.Second
-	if du, err := time.ParseDuration(string(config.KeeperReloadInterval)); err == nil {
+	if du, err := time.ParseDuration(config.KeeperReloadInterval); err == nil {
 		to = du
 	}
+
 	grl.ticker = time.NewTicker(to)
 	grl.tickerto = to
 	grl.configure(nil, config)
+
 	go func() {
 		for {
 			select {
@@ -116,7 +155,8 @@ func init() {
 			}
 		}
 	}()
-	locallog("init")
+
+	grl.wrapLogger.Info("init")
 }
 
 // New created a new plugin.
@@ -136,9 +176,6 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 	if len(config.KeeperURL) == 0 {
 		locallog("config: keeperURL is empty")
 	}
-	if len(config.KeeperAdminPassword) == 0 {
-		locallog("config: keeperAdminPassword is empty")
-	}
 	r := newRateLimit(ctx, next, config, name)
 	r.l = l
 	return r, nil
@@ -147,21 +184,25 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 func (g *GlobalRateLimit) sync() {
 	g.umtx.Lock()
 	defer g.umtx.Unlock()
-	locallog("sync")
+	g.wrapLogger.Info("sync")
 	err := grl.setFromSettings()
 	if err != nil {
-		locallog("cant get ratelimits from keeper: ", err)
+		g.wrapLogger.Error(fmt.Errorf("cant get ratelimits from keeper: %w", err))
 	}
 }
 
 func (g *GlobalRateLimit) configure(ctx context.Context, config *Config) {
+	g.wrapLogger = &wrapLogger{
+		logger: loggerpkg.New(),
+	}
+
 	to := 300 * time.Second
-	if du, err := time.ParseDuration(string(config.KeeperReqTimeout)); err == nil {
+	if du, err := time.ParseDuration(config.KeeperReqTimeout); err == nil {
 		to = du
 	}
 	if ctx != nil {
 		i := atomic.AddInt32(g.icnt, 1)
-		locallog("run instance. cnt: ", i)
+		g.wrapLogger.Info("run instance. cnt: " + strconv.FormatInt(int64(i), 10))
 		/*
 			go func() {
 				<-ctx.Done()
@@ -181,26 +222,37 @@ func (g *GlobalRateLimit) configure(ctx context.Context, config *Config) {
 	g.umtx.Lock()
 	defer g.umtx.Unlock()
 
-	if to, err := time.ParseDuration(string(config.KeeperReloadInterval)); err == nil && grl.tickerto != to {
+	if to, err := time.ParseDuration(config.KeeperReloadInterval); err == nil && grl.tickerto != to {
 		g.ticker.Reset(to)
 		grl.tickerto = to
 	}
-	g.settings = keeper.New(config.KeeperURL, to, config.KeeperAdminPassword)
+
+	keeperClient, err := keeperSDK.New(
+		keeperSDK.Config{
+			KeeperURL:  config.KeeperURL,
+			ReqTimeout: to,
+		},
+		keeperSDK.WithLogger(g.wrapLogger.logger),
+		keeperSDK.WithPreloadCache(),
+	)
+
+	g.keeperClient = keeperClient
 	g.config = config
-	err := grl.setFromSettings()
+
+	err = grl.setFromSettings()
 	if err != nil {
 		if ctx == nil {
-			locallog(fmt.Sprintf("init0: keeper: %v. try init from middleware RatelimitData configuration", err))
+			g.wrapLogger.Error(fmt.Errorf("init0: keeper: %w. try init from middleware RatelimitData configuration", err))
 		} else {
-			locallog(fmt.Sprintf("init: keeper: %v. try init from middleware RatelimitData configuration", err))
+			g.wrapLogger.Error(fmt.Errorf("init: keeper: %w. try init from middleware RatelimitData configuration", err))
 		}
 		err = grl.setFromData()
 		//		err = grl.setFromFile()
 		if err != nil {
 			if ctx == nil {
-				locallog(fmt.Sprintf("init0: data: %v", err))
+				g.wrapLogger.Error(fmt.Errorf("init0: data: %w", err))
 			} else {
-				locallog(fmt.Sprintf("init: data: %v", err))
+				g.wrapLogger.Error(fmt.Errorf("init: data: %w", err))
 			}
 		}
 	}
@@ -216,7 +268,9 @@ func newRateLimit(ctx context.Context, next http.Handler, config *Config, name s
 		next: next,
 		cnt:  new(int32),
 	}
+
 	grl.configure(ctx, config)
+
 	return r
 }
 

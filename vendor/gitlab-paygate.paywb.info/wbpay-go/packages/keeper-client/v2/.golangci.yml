@@ -1,0 +1,67 @@
+run:
+  concurrency: 4
+  deadline: 30m
+  issues-exit-code: 1
+  tests: true
+  allow-parallel-runners: true
+  skip-dirs:
+    - mocks
+
+linters:
+  enable-all: true
+  fast: false
+  disable:
+    # invalid or deprecated packages
+    - deadcode
+    - exhaustivestruct
+    - golint
+    - ifshort
+    - interfacer
+    - maligned
+    - nosnakecase
+    - scopelint
+    - structcheck
+    - varcheck
+    - depguard
+    - tagalign
+    - nonamedreturns
+    - ireturn
+
+    # team rules
+    - lll
+    - cyclop
+    - exhaustruct
+    - gci
+    - gochecknoglobals
+    - gocognit
+    - gocyclo
+    - godox
+    - goerr113
+    - gofumpt
+    - nlreturn
+    - noctx
+    - paralleltest
+    - testpackage
+
+issues:
+  exclude:
+#    - "type name will be used as campaign.CampaignConfig by other packages"
+
+linters-settings:
+  mnd:
+    ignored-functions:
+      - strconv.*
+      - time.Duration
+      - time.Sleep
+  nestif:
+    min-complexity: 12
+  tagliatelle:
+    case:
+      rules:
+        json: snake
+  varnamelen:
+    ignore-decls:
+      - r *http.Request
+      - w http.ResponseWriter
+      - wg sync.WaitGroup
+
