@@ -2,6 +2,7 @@ package traefik_ratelimit
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -70,13 +71,13 @@ func (g *GlobalRateLimit) setFromData() error {
 	return err
 }
 
-func (g *GlobalRateLimit) setFromSettings() error {
+func (g *GlobalRateLimit) setFromSettings(ctx context.Context) error {
 	if g.config == nil {
 		g.logWorkingLimits()
 		return fmt.Errorf("config not specified")
 	}
 
-	result, err := g.GetSettings()
+	result, err := g.GetSettings(ctx)
 	if err != nil {
 		g.logWorkingLimits()
 		return err

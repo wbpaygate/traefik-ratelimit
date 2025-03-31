@@ -99,8 +99,8 @@ type GlobalRateLimit struct {
 	wrapLogger   *wrapLogger
 }
 
-func (grl *GlobalRateLimit) GetSettings() (*keeperTransport.Value, error) {
-	val, err := grl.keeperClient.Get(nil, grl.config.KeeperRateLimitKey)
+func (grl *GlobalRateLimit) GetSettings(ctx context.Context) (*keeperTransport.Value, error) {
+	val, err := grl.keeperClient.Get(ctx, grl.config.KeeperRateLimitKey)
 	if err != nil {
 		return nil, err
 	}
@@ -184,8 +184,10 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 func (g *GlobalRateLimit) sync() {
 	g.umtx.Lock()
 	defer g.umtx.Unlock()
+
 	g.wrapLogger.Info("sync")
-	err := grl.setFromSettings()
+
+	err := grl.setFromSettings(context.Background())
 	if err != nil {
 		g.wrapLogger.Error(fmt.Errorf("cant get ratelimits from keeper: %w", err))
 	}
@@ -239,7 +241,7 @@ func (g *GlobalRateLimit) configure(ctx context.Context, config *Config) {
 	g.keeperClient = keeperClient
 	g.config = config
 
-	err = grl.setFromSettings()
+	err = grl.setFromSettings(ctx)
 	if err != nil {
 		if ctx == nil {
 			g.wrapLogger.Error(fmt.Errorf("init0: keeper: %w. try init from middleware RatelimitData configuration", err))
