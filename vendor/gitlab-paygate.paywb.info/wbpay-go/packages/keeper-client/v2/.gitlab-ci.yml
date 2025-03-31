@@ -1,0 +1,23 @@
+.template_repo: &repo
+  project: &ci_tmpl "devops/ci/templates"
+  ref: &ci_tmpl_vers "$CI_TMPL_V_PCIDSS"
+
+variables:
+  CI_CHECK: "false"
+  CI_TMPL_PROJECT_VERSION: *ci_tmpl_vers
+  GO_VER: "1.22.10"
+  GO_LINT_VER: "1.50.0"
+  GO_TEST_FLAGS: "-mod=readonly"
+  GO_TEST_EXPECTED_COVERAGE: "29"
+
+  VAULT_JWT_AUTH: "jwt-gitlab-private"
+
+include:
+  - {<<: *repo, file: /pipelines/go.yml}
+
+
+.go_lint:
+  allow_failure: false
+
+.go_test:
+  allow_failure: false

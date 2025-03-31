@@ -3,11 +3,12 @@ package traefik_ratelimit
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/wbpaygate/traefik-ratelimit/internal/pat2"
-	"github.com/wbpaygate/traefik-ratelimit/internal/rate"
 	"net/http"
 	"strings"
 	"sync/atomic"
+
+	"github.com/wbpaygate/traefik-ratelimit/internal/pat2"
+	"github.com/wbpaygate/traefik-ratelimit/internal/rate"
 )
 
 func (g *GlobalRateLimit) update(b []byte) error {
@@ -106,7 +107,7 @@ func (g *GlobalRateLimit) update(b []byte) error {
 		j++
 	}
 	clim.Limits = clim.Limits[:j]
-	locallog(fmt.Sprintf("use %d limits", len(clim.Limits)))
+	g.wrapLogger.Info(fmt.Sprintf("use %d limits", len(clim.Limits)))
 
 	for _, l := range oldlim.mlimits {
 		if _, ok := useful[l]; !ok {

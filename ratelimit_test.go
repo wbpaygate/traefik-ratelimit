@@ -3,11 +3,12 @@ package traefik_ratelimit_test
 import (
 	"context"
 	"encoding/json"
-	ratelimit "github.com/wbpaygate/traefik-ratelimit"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	ratelimit "github.com/wbpaygate/traefik-ratelimit"
 )
 
 type testdata struct {
