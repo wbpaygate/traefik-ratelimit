@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/wbpaygate/traefik-ratelimit/internal/pat2"
+	"github.com/wbpaygate/traefik-ratelimit/internal/pat"
 	"github.com/wbpaygate/traefik-ratelimit/internal/rate"
 )
 

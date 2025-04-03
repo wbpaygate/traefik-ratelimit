@@ -1,10 +1,11 @@
 package traefik_ratelimit
 
 import (
-	"github.com/wbpaygate/traefik-ratelimit/internal/pat2"
 	"net/http"
 	"strings"
 	"sync/atomic"
+
+	"github.com/wbpaygate/traefik-ratelimit/internal/pat"
 )
 
 func (r *RateLimit) allow1(grllimits *limits, p string, req *http.Request) (bool, bool) {
@@ -16,10 +17,12 @@ func (r *RateLimit) allow1(grllimits *limits, p string, req *http.Request) (bool
 				}
 			}
 		}
+
 		if ls2.limit != nil {
 			return ls2.limit.limiter.Allow(), true
 		}
 	}
+
 	return false, false
 }
 
@@ -32,6 +35,7 @@ func (r *RateLimit) allow(req *http.Request) bool {
 	if cnt%1000 == 0 {
 		r.log("allow ", cnt)
 	}
+
 	grllimits := grl.limits[int(atomic.LoadInt32(grl.curlimit))]
 
 	for _, ipt := range grllimits.pats {
@@ -41,8 +45,10 @@ func (r *RateLimit) allow(req *http.Request) bool {
 			}
 		}
 	}
+
 	if res, ok := r.allow1(grllimits, "", req); ok {
 		return res
 	}
+
 	return true
 }

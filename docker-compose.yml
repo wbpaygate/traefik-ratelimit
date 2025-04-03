@@ -1,0 +1,56 @@
+x-common-variables: &common-variables
+  REQUEST_LIMIT: 7
+
+services:
+  traefik:
+    image: traefik:v2.11 # согласованная версия траефик на всех кластерах
+    container_name: traefik
+    command:
+      - --ping=true
+      - --log.level=DEBUG
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entryPoints.web.address=:80
+      - --experimental.localplugins.traefik-ratelimit.moduleName=github.com/wbpaygate/traefik-ratelimit
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - .:/plugins-local/src/github.com/wbpaygate/traefik-ratelimit
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8080/ping" ]
+      interval: 5s
+      timeout: 4s
+      retries: 3
+
+  whoami:
+    image: traefik/whoami
+    container_name: simple-service
+    environment:
+      <<: *common-variables
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.whoami.rule=PathPrefix(`/whoami`)
+      - traefik.http.routers.whoami.entrypoints=web
+      - traefik.http.middlewares.traefik_ratelimit.plugin.traefik-ratelimit.ratelimitData={"limits":[{"limit":7,"rules":[{"urlpathpattern":"/whoami"}]}]} # лимит для теста
+      - traefik.http.routers.whoami.middlewares=traefik_ratelimit@docker
+    depends_on:
+      traefik:
+        condition: service_healthy
+
+  test:
+    image: alpine:latest
+    container_name: test-runner
+    environment:
+      <<: *common-variables
+    volumes:
+      - ./script:/script
+    entrypoint: [ "/bin/sh", "-c" ]
+    command: [ "apk add --no-cache curl bash && bash /script/test.sh \"$$REQUEST_LIMIT\"" ]
+    depends_on:
+      traefik:
+        condition: service_healthy
+      whoami:
+        condition: service_started
+
+
+

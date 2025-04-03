@@ -1,0 +1,36 @@
+version: '3'
+
+tasks:
+  default:
+#    deps: [lint, test, local_test] lint...
+    deps: [test, local_test]
+
+  lint:
+    cmds:
+      - golangci-lint run
+
+  test:
+    cmds:
+      - go test -v -cover ./...
+
+  yaegi_test:
+    cmds:
+      - yaegi test -v .
+
+  vendor:
+    cmds:
+      - go mod vendor
+
+  clean:
+    cmds:
+      - rm -rf ./vendor
+
+  local_test:
+    desc: "Run local tests by starting docker-compose and executing script/test.sh"
+    cmds:
+      - docker compose up -d --remove-orphans --wait traefik whoami
+      - docker compose run test
+      - docker-compose down
+    sources:
+      - docker-compose.yml
+      - script/test.sh

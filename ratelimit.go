@@ -12,11 +12,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	keeperSDK "gitlab-paygate.paywb.info/wbpay-go/packages/keeper-client/v2"
-	keeperTransport "gitlab-paygate.paywb.info/wbpay-go/packages/keeper-client/v2/transport"
-
+	"github.com/wbpaygate/traefik-ratelimit/internal/keeperclient"
 	loggerpkg "github.com/wbpaygate/traefik-ratelimit/internal/logger"
-	pat "github.com/wbpaygate/traefik-ratelimit/internal/pat2"
+	"github.com/wbpaygate/traefik-ratelimit/internal/pat"
 	"github.com/wbpaygate/traefik-ratelimit/internal/rate"
 )
 
@@ -30,12 +28,13 @@ func CreateConfig() *Config {
 }
 
 type Config struct {
-	KeeperRateLimitKey   string `json:"keeperRateLimitKey,omitempty"`
-	KeeperURL            string `json:"keeperURL,omitempty"`
-	KeeperReqTimeout     string `json:"keeperReqTimeout,omitempty"`
-	KeeperReloadInterval string `json:"keeperReloadInterval,omitempty"`
-	RatelimitPath        string `json:"ratelimitPath,omitempty"`
-	RatelimitData        string `json:"ratelimitData,omitempty"`
+	KeeperURL              string `json:"keeperURL,omitempty"`
+	KeeperSettingsEndpoint string `json:"keeperSettingsEndpoint,omitempty"`
+	KeeperRateLimitKey     string `json:"keeperRateLimitKey,omitempty"`
+	KeeperReqTimeout       string `json:"keeperReqTimeout,omitempty"`
+	KeeperReloadInterval   string `json:"keeperReloadInterval,omitempty"`
+	RatelimitPath          string `json:"ratelimitPath,omitempty"`
+	RatelimitData          string `json:"ratelimitData,omitempty"`
 }
 
 type rule struct {
@@ -86,7 +85,7 @@ func (wl wrapLogger) Error(err error) {
 
 type GlobalRateLimit struct {
 	config    *Config
-	version   *keeperTransport.Value
+	version   *keeperclient.Value
 	umtx      sync.Mutex
 	curlimit  *int32
 	limits    []*limits
@@ -95,12 +94,12 @@ type GlobalRateLimit struct {
 	tickerto  time.Duration
 	icnt      *int32
 
-	keeperClient *keeperSDK.Client
+	keeperClient *keeperclient.Client
 	wrapLogger   *wrapLogger
 }
 
-func (grl *GlobalRateLimit) GetSettings(ctx context.Context) (*keeperTransport.Value, error) {
-	val, err := grl.keeperClient.Get(ctx, grl.config.KeeperRateLimitKey)
+func (grl *GlobalRateLimit) GetSettings(ctx context.Context) (*keeperclient.Value, error) {
+	val, err := grl.keeperClient.GetRateLimits(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -108,14 +107,6 @@ func (grl *GlobalRateLimit) GetSettings(ctx context.Context) (*keeperTransport.V
 	grl.version = val
 
 	return val, nil
-}
-
-func (grl *GlobalRateLimit) EqualVersion(l *keeperTransport.Value) bool {
-	if grl == nil || l == nil {
-		return false
-	}
-
-	return l.Version == grl.version.Version && l.ModRevision == grl.version.ModRevision
 }
 
 var grl *GlobalRateLimit
@@ -126,7 +117,7 @@ func init() {
 	grl = &GlobalRateLimit{
 		curlimit:  new(int32),
 		limits:    make([]*limits, LIMITS),
-		version:   &keeperTransport.Value{},
+		version:   &keeperclient.Value{},
 		rawlimits: []byte(""),
 		icnt:      new(int32),
 	}
@@ -195,7 +186,7 @@ func (g *GlobalRateLimit) sync() {
 
 func (g *GlobalRateLimit) configure(ctx context.Context, config *Config) {
 	g.wrapLogger = &wrapLogger{
-		logger: loggerpkg.New(),
+		logger: loggerpkg.NewLogger(),
 	}
 
 	to := 300 * time.Second
@@ -229,19 +220,12 @@ func (g *GlobalRateLimit) configure(ctx context.Context, config *Config) {
 		grl.tickerto = to
 	}
 
-	keeperClient, err := keeperSDK.New(
-		keeperSDK.Config{
-			KeeperURL:  config.KeeperURL,
-			ReqTimeout: to,
-		},
-		keeperSDK.WithLogger(g.wrapLogger.logger),
-		keeperSDK.WithPreloadCache(),
-	)
+	keeperClient := keeperclient.NewKeeperClient(config.KeeperURL, config.KeeperSettingsEndpoint, config.KeeperRateLimitKey, to)
 
 	g.keeperClient = keeperClient
 	g.config = config
 
-	err = grl.setFromSettings(ctx)
+	err := grl.setFromSettings(ctx)
 	if err != nil {
 		if ctx == nil {
 			g.wrapLogger.Error(fmt.Errorf("init0: keeper: %w. try init from middleware RatelimitData configuration", err))

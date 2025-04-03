@@ -1,8 +1,9 @@
 package pat_test
 
 import (
-	"github.com/wbpaygate/traefik-ratelimit/internal/pat2"
 	"testing"
+
+	"github.com/wbpaygate/traefik-ratelimit/internal/pat"
 )
 
 type testdata struct {
