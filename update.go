@@ -88,7 +88,7 @@ func (g *GlobalRateLimit) setFromSettings(ctx context.Context) error {
 		return fmt.Errorf("settings not found in keeper")
 	}
 
-	if !g.EqualVersion(result) {
+	if !g.version.Equal(result) {
 		defer g.logWorkingLimits()
 
 		if g.version != nil {
