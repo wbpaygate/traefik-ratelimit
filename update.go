@@ -1,113 +1,161 @@
 package traefik_ratelimit
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"sync/atomic"
+	"sync"
+
+	"github.com/wbpaygate/traefik-ratelimit/internal/keeper"
+	"github.com/wbpaygate/traefik-ratelimit/internal/limiter"
+	"github.com/wbpaygate/traefik-ratelimit/internal/logger"
+	"github.com/wbpaygate/traefik-ratelimit/internal/pattern"
 )
 
-func (g *GlobalRateLimit) logWorkingLimits() {
-	buf := new(bytes.Buffer)
-	if err := json.Compact(buf, g.rawlimits); err != nil {
-		g.wrapLogger.Info(fmt.Sprintf("working limits: %s", g.rawlimits))
+func serializeAndValidateLimits(b []byte) (*Limits, error) {
+	var l Limits
+	if err := json.Unmarshal(b, &l); err != nil {
+		return nil, fmt.Errorf("unmarshal error: %w", err)
+	}
+
+	if err := l.validate(); err != nil {
+		return nil, fmt.Errorf("validate limit error: %w", err)
+	}
+
+	return &l, nil
+}
+
+func (rl *RateLimiter) loadLimits(limitsConfig []byte) error {
+	l, err := serializeAndValidateLimits(limitsConfig)
+	if err != nil {
+		return fmt.Errorf("serializeAndValidateLimits error: %w", err)
+	}
+
+	settingsAny := rl.keeperSetting.Load()
+	settings, ok := settingsAny.(*keeper.Value)
+	if !ok {
+		return fmt.Errorf("cannot type assert *keeper.Value")
+	}
+	if settings == nil {
+		return fmt.Errorf("settings is nil")
+	}
+
+	settings.Version = 0
+	settings.ModRevision = 0
+
+	rl.limits.Store(l)
+	rl.hotReloadLimits(l)
+
+	return nil
+}
+
+func (rl *RateLimiter) updateLimits(ctx context.Context) error {
+	kc, ok := rl.keeperClient.Load().(*keeper.KeeperClient)
+	if !ok || kc == nil {
+		return fmt.Errorf("keeperClient not init, try reconfigure")
+
+	}
+
+	result, err := kc.GetRateLimits(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get limits from keeper, error: %w", err)
+	}
+
+	if result == nil || result.Value == "" {
+		return fmt.Errorf("empty result from keeper")
+	}
+
+	settingsAny := rl.keeperSetting.Load()
+	settings, ok := settingsAny.(*keeper.Value)
+	if !ok {
+		return fmt.Errorf("cannot type assert *keeper.Value")
+	}
+	if settings == nil {
+		return fmt.Errorf("settings is nil")
+	}
+
+	if !settings.Equal(result) {
+		logger.Debug(ctx, fmt.Sprintf("old configuration: version: %d, mod_revision: %d", settings.Version, settings.ModRevision))
+
+		l, err := serializeAndValidateLimits([]byte(result.Value))
+		if err != nil {
+			return fmt.Errorf("failed serialize and validate limits: %w", err)
+		}
+
+		rl.keeperSetting.Store(result)
+		rl.limits.Store(l)
+
+		rl.hotReloadLimits(l)
+
+		logger.Debug(ctx, fmt.Sprintf("new configuration loaded: version: %d, mod_revision: %d", result.Version, result.ModRevision))
 
 	} else {
-		g.wrapLogger.Info(fmt.Sprintf("working limits: %s", buf.String()))
-	}
-
-	limits := g.limits[int(atomic.LoadInt32(grl.curlimit))].limits
-
-	for p, lim := range limits {
-		if lim.limit != nil {
-			g.wrapLogger.Info(fmt.Sprintf("working limit rule %d,%d: %q \"\" \"\" %p %p %d %d", g.version.Version, g.version.ModRevision, p, lim.limit, lim.limit.limiter, lim.limit.Limit, lim.limit.limiter.Limit()))
-		}
-		for _, lim2 := range lim.limits {
-			for val, lim3 := range lim2.limits {
-				g.wrapLogger.Info(fmt.Sprintf("working limit rule %d,%d: %q %q %q %p %p %d %d", g.version.Version, g.version.ModRevision, p, lim2.key, val, lim3, lim3.limiter, lim3.Limit, lim3.limiter.Limit()))
-			}
-		}
-	}
-}
-
-func (g *GlobalRateLimit) setFromFile() error {
-	defer g.logWorkingLimits()
-	if g.config == nil {
-		return fmt.Errorf("config not specified")
-	}
-
-	b, err := os.ReadFile(g.config.RatelimitPath)
-	if err != nil {
-		return err
-	}
-
-	err = g.update(b)
-	if err == nil {
-		g.rawlimits = b
-		g.version.Version = 0
-		g.version.ModRevision = 0
-	}
-
-	return err
-}
-
-func (g *GlobalRateLimit) setFromData() error {
-	defer g.logWorkingLimits()
-	if g.config == nil {
-		return fmt.Errorf("config not specified")
-	}
-
-	b := []byte(g.config.RatelimitData)
-
-	err := g.update(b)
-	if err == nil {
-		g.rawlimits = b
-		g.version.Version = 0
-		g.version.ModRevision = 0
-	}
-
-	return err
-}
-
-func (g *GlobalRateLimit) setFromSettings(ctx context.Context) error {
-	if g.config == nil {
-		g.logWorkingLimits()
-		return fmt.Errorf("config not specified")
-	}
-
-	result, err := g.GetSettings(ctx)
-	if err != nil {
-		g.logWorkingLimits()
-		return err
-	}
-
-	if result == nil || len(result.Value) == 0 {
-		g.logWorkingLimits()
-		return fmt.Errorf("settings not found in keeper")
-	}
-
-	if !g.version.Equal(result) {
-		defer g.logWorkingLimits()
-
-		if g.version != nil {
-			g.wrapLogger.Info(fmt.Sprintf("old configuration: Version: %d, ModRevision: %d", g.version.Version, g.version.ModRevision))
-		}
-
-		err = g.update([]byte(result.Value))
-		if err != nil {
-			return err
-		}
-
-		g.rawlimits = []byte(result.Value)
-		g.version = result
-		g.wrapLogger.Info(fmt.Sprintf("new configuration loaded: Version: %d, ModRevision: %d", g.version.Version, g.version.ModRevision))
+		logger.Debug(ctx, fmt.Sprintf("no update, use configuration: version: %d, mod_revision: %d", settings.Version, settings.ModRevision))
 	}
 
 	return nil
 }
 
-func (r *RateLimit) Update(b []byte) error {
-	return grl.update(b)
+func (rl *RateLimiter) hotReloadLimits(limits *Limits) {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	newPatterns := &sync.Map{}
+	newHeaders := &sync.Map{}
+
+	for _, limit := range limits.Limits {
+		lim := limiter.NewLimiter(limit.Limit)
+
+		for _, rule := range limit.Rules {
+			stored := false
+
+			if rule.UrlPathPattern != "" {
+				newPatterns.Store(pattern.NewPattern(rule.UrlPathPattern), lim)
+				stored = true
+			}
+
+			if rule.HeaderKey != "" && rule.HeaderVal != "" {
+				newHeaders.Store(&Header{
+					key: rule.HeaderKey,
+					val: rule.HeaderVal,
+				}, lim)
+				stored = true
+			}
+
+			if !stored {
+				lim.Close()
+			}
+		}
+	}
+
+	// закрытие старых лимитеров
+	if oldPatternsPtr := rl.patterns.Load(); oldPatternsPtr != nil {
+		if oldPatterns, okTypeAssert := oldPatternsPtr.(*sync.Map); okTypeAssert {
+			defer func() {
+				oldPatterns.Range(func(key, value any) bool {
+					if lim, ok := value.(*limiter.Limiter); ok {
+						lim.Close()
+					}
+					return true
+				})
+			}()
+		}
+	}
+
+	if oldHeadersPtr := rl.headers.Load(); oldHeadersPtr != nil {
+		if oldHeaders, okTypeAssert := oldHeadersPtr.(*sync.Map); okTypeAssert {
+			defer func() {
+				oldHeaders.Range(func(key, value any) bool {
+					if lim, ok := value.(*limiter.Limiter); ok {
+						lim.Close()
+					}
+					return true
+				})
+			}()
+		}
+	}
+
+	// атомарное переключение
+	rl.patterns.Store(newPatterns)
+	rl.headers.Store(newHeaders)
 }
