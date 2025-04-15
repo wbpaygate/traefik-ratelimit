@@ -2,53 +2,75 @@ package traefik_ratelimit
 
 import (
 	"net/http"
-	"strings"
-	"sync/atomic"
+	"sync"
 
-	"github.com/wbpaygate/traefik-ratelimit/internal/pat"
+	"github.com/wbpaygate/traefik-ratelimit/internal/limiter"
+	"github.com/wbpaygate/traefik-ratelimit/internal/logger"
+	"github.com/wbpaygate/traefik-ratelimit/internal/pattern"
 )
 
-func (r *RateLimit) allow1(grllimits *limits, p string, req *http.Request) (bool, bool) {
-	if ls2, ok := grllimits.limits[p]; ok {
-		for _, ls3 := range ls2.limits {
-			for _, val := range req.Header.Values(ls3.key) {
-				if l, ok := ls3.limits[strings.ToLower(val)]; ok {
-					return l.limiter.Allow(), true
-				}
-			}
-		}
-
-		if ls2.limit != nil {
-			return ls2.limit.limiter.Allow(), true
-		}
-	}
-
-	return false, false
+func (rl *RateLimiter) Allow(req *http.Request) bool {
+	return rl.allowFromHeaders(req) && rl.allowFromPatterns(req)
 }
 
-func (r *RateLimit) Allow(req *http.Request) bool {
-	return r.allow(req)
+func (rl *RateLimiter) allowFromHeaders(req *http.Request) bool {
+	headersPtr := rl.headers.Load()
+	if headersPtr == nil {
+		logger.Error(req.Context(), "headersPtr is nil")
+		return true
+	}
+
+	headers, ok := headersPtr.(*sync.Map)
+	if !ok {
+		logger.Error(req.Context(), "cannot type assert *sync.Map")
+		return true
+	}
+
+	var allow = true
+
+	headers.Range(func(key, value any) bool {
+		header := key.(*Header)
+		lim := value.(*limiter.Limiter)
+
+		if req.Header.Get(header.key) == header.val {
+			logger.Debug(req.Context(), "header limit exceeded", "key", header.key, "value", header.val)
+			allow = lim.Allow()
+			return allow // это return из функции обхода мапы
+		}
+
+		return true // too
+	})
+
+	return allow
 }
 
-func (r *RateLimit) allow(req *http.Request) bool {
-	cnt := atomic.AddInt32(r.cnt, 1)
-	if cnt%1000 == 0 {
-		r.log("allow ", cnt)
+func (rl *RateLimiter) allowFromPatterns(req *http.Request) bool {
+	patternsPtr := rl.patterns.Load()
+	if patternsPtr == nil {
+		logger.Error(req.Context(), "patternsPtr is nil")
+		return true
 	}
 
-	grllimits := grl.limits[int(atomic.LoadInt32(grl.curlimit))]
+	patterns, ok := patternsPtr.(*sync.Map)
+	if !ok {
+		logger.Error(req.Context(), "cannot type assert *sync.Map")
+		return true
+	}
 
-	for _, ipt := range grllimits.pats {
-		if p, ok := pat.Preparepat(ipt, req.URL.Path); ok {
-			if res, ok := r.allow1(grllimits, p, req); ok {
-				return res
-			}
+	allow := true
+
+	patterns.Range(func(key, value any) bool {
+		ptrn := key.(*pattern.Pattern)
+		lim := value.(*limiter.Limiter)
+
+		if ptrn.Match([]byte(req.URL.Path)) {
+			logger.Debug(req.Context(), "pattern limit exceeded", "pattern", ptrn.String(), "path", req.URL.Path)
+			allow = lim.Allow()
+			return allow // это return из функции обхода мапы
 		}
-	}
 
-	if res, ok := r.allow1(grllimits, "", req); ok {
-		return res
-	}
+		return true // too
+	})
 
-	return true
+	return allow
 }

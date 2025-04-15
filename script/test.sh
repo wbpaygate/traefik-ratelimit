@@ -8,7 +8,7 @@ if [[ -z "$1" ]]; then
 fi
 
 MAX_REQUESTS=$1
-TARGET_URL="http://traefik/whoami" # хост имя сервиса в кубе
+TARGET_URL="http://traefik/whoami" # хост имя сервиса в докере
 TIMEOUT=1
 
 echo "Starting rate limiter test..."

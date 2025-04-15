@@ -3,7 +3,7 @@ x-common-variables: &common-variables
 
 services:
   traefik:
-    image: traefik:v2.11 # согласованная версия траефик на всех кластерах
+    image: traefik:v2.11.19 # согласованная версия траефик на всех кластерах
     container_name: traefik
     command:
       - --ping=true
