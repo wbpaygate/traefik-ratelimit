@@ -22,7 +22,7 @@ type Config struct {
 	KeeperRateLimitKey     string `json:"keeperRateLimitKey,omitempty"`
 	KeeperReqTimeout       string `json:"keeperReqTimeout,omitempty"`
 	KeeperReloadInterval   string `json:"keeperReloadInterval,omitempty"`
-	RatelimitDebug         string `json:"RatelimitDebug,omitempty"`
+	RatelimitDebug         string `json:"ratelimitDebug,omitempty"`
 	RatelimitData          string `json:"ratelimitData,omitempty"`
 }
 
@@ -76,11 +76,11 @@ func New(ctx context.Context, next http.Handler, cfg *Config, name string) (http
 }
 
 func logConfig(ctx context.Context, cfg *Config) {
-	configJSON, err := json.MarshalIndent(cfg, "", "  ")
+	configJSON, err := json.Marshal(cfg)
 	if err != nil {
 		logger.Error(ctx, fmt.Sprintf("failed to marshal config: %v", err))
 		return
 	}
 
-	logger.Info(ctx, fmt.Sprintf("loaded config:\n%s", string(configJSON)))
+	logger.Info(ctx, "loaded config: "+string(configJSON))
 }

@@ -88,13 +88,8 @@ func NewRateLimiter(ctx context.Context, rateLimitLimits string) *RateLimiter {
 }
 
 func (rl *RateLimiter) startBackgroundLimitsUpdater(ctx context.Context, tickerPeriod time.Duration) {
-	if tickerPeriod < 1 {
+	if tickerPeriod < 2 {
 		tickerPeriod = 2 // защита на уровне кода
-	}
-
-	ctxTimeout := tickerPeriod - 1
-	if ctxTimeout <= 0 {
-		ctxTimeout = 1
 	}
 
 	ticker := time.NewTicker(tickerPeriod)
@@ -103,21 +98,13 @@ func (rl *RateLimiter) startBackgroundLimitsUpdater(ctx context.Context, tickerP
 	go func() {
 		for {
 			select {
-			case <-ctx.Done():
-				return
-
-			case _, ok := <-ticker.C:
-				if !ok {
-					return
-				}
-
-				tickerCtx, cancel := context.WithTimeout(ctx, ctxTimeout)
-				logger.Debug(tickerCtx, "update limits")
+			case <-ticker.C:
+				tickerCtx, cancel := context.WithTimeout(ctx, tickerPeriod-1)
+				logger.Debug(tickerCtx, "try update limits")
 				if err := rl.updateLimits(tickerCtx); err != nil {
 					logger.Error(tickerCtx, fmt.Sprintf("cannot update limits, error: %v", err))
 				}
 
-				rl.logWorkingLimits(tickerCtx)
 				cancel()
 			}
 		}

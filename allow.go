@@ -33,7 +33,6 @@ func (rl *RateLimiter) allowFromHeaders(req *http.Request) bool {
 		lim := value.(*limiter.Limiter)
 
 		if req.Header.Get(header.key) == header.val {
-			logger.Debug(req.Context(), "header limit exceeded", "key", header.key, "value", header.val)
 			allow = lim.Allow()
 			return allow // это return из функции обхода мапы
 		}
@@ -64,7 +63,6 @@ func (rl *RateLimiter) allowFromPatterns(req *http.Request) bool {
 		lim := value.(*limiter.Limiter)
 
 		if ptrn.Match([]byte(req.URL.Path)) {
-			logger.Debug(req.Context(), "pattern limit exceeded", "pattern", ptrn.String(), "path", req.URL.Path)
 			allow = lim.Allow()
 			return allow // это return из функции обхода мапы
 		}

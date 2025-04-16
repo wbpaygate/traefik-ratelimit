@@ -32,6 +32,11 @@ services:
       - traefik.http.routers.whoami.rule=PathPrefix(`/whoami`)
       - traefik.http.routers.whoami.entrypoints=web
       - traefik.http.middlewares.traefik_ratelimit.plugin.traefik-ratelimit.ratelimitData={"limits":[{"limit":7,"rules":[{"urlpathpattern":"/whoami"}]}]} # лимит для теста
+#      - traefik.http.middlewares.traefik_ratelimit.plugin.traefik-ratelimit.keeperReloadInterval=5s
+#      - traefik.http.middlewares.traefik_ratelimit.plugin.traefik-ratelimit.ratelimitDebug=true
+#      - traefik.http.middlewares.traefik_ratelimit.plugin.traefik-ratelimit.keeperURL=https://keeper-ext.dev.paywb.com
+#      - traefik.http.middlewares.traefik_ratelimit.plugin.traefik-ratelimit.keeperSettingsEndpoint=admin/get
+#      - traefik.http.middlewares.traefik_ratelimit.plugin.traefik-ratelimit.keeperRateLimitKey=ratelimits
       - traefik.http.routers.whoami.middlewares=traefik_ratelimit@docker
     depends_on:
       traefik:

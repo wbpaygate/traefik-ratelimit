@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+
+	"github.com/wbpaygate/traefik-ratelimit/internal/logger"
 )
 
 // Value copy from gitlab-paygate.paywb.info/wbpay-go/packages/keeper-client/v2/transport
@@ -52,6 +54,8 @@ func NewKeeperClient(cl *http.Client, url, settingsEndpoint, key string) *Keeper
 
 func (c *KeeperClient) GetRateLimits(ctx context.Context) (*Value, error) {
 	reqURL := fmt.Sprintf("%s/%s/%s", c.url, c.settingsEndpoint, c.key)
+
+	logger.Debug(ctx, "get rate limits url: "+reqURL)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {

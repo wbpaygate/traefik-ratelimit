@@ -12,23 +12,19 @@ import (
 	"github.com/wbpaygate/traefik-ratelimit/internal/pattern"
 )
 
-func serializeAndValidateLimits(b []byte) (*Limits, error) {
+func serializeLimits(b []byte) (*Limits, error) {
 	var l Limits
 	if err := json.Unmarshal(b, &l); err != nil {
 		return nil, fmt.Errorf("unmarshal error: %w", err)
-	}
-
-	if err := l.validate(); err != nil {
-		return nil, fmt.Errorf("validate limit error: %w", err)
 	}
 
 	return &l, nil
 }
 
 func (rl *RateLimiter) loadLimits(limitsConfig []byte) error {
-	l, err := serializeAndValidateLimits(limitsConfig)
+	l, err := serializeLimits(limitsConfig)
 	if err != nil {
-		return fmt.Errorf("serializeAndValidateLimits error: %w", err)
+		return fmt.Errorf("serializeLimits error: %w", err)
 	}
 
 	settingsAny := rl.keeperSetting.Load()
@@ -77,7 +73,7 @@ func (rl *RateLimiter) updateLimits(ctx context.Context) error {
 	if !settings.Equal(result) {
 		logger.Debug(ctx, fmt.Sprintf("old configuration: version: %d, mod_revision: %d", settings.Version, settings.ModRevision))
 
-		l, err := serializeAndValidateLimits([]byte(result.Value))
+		l, err := serializeLimits([]byte(result.Value))
 		if err != nil {
 			return fmt.Errorf("failed serialize and validate limits: %w", err)
 		}
@@ -87,10 +83,12 @@ func (rl *RateLimiter) updateLimits(ctx context.Context) error {
 
 		rl.hotReloadLimits(l)
 
-		logger.Debug(ctx, fmt.Sprintf("new configuration loaded: version: %d, mod_revision: %d", result.Version, result.ModRevision))
+		logger.Info(ctx, fmt.Sprintf("new configuration loaded: version: %d, mod_revision: %d", result.Version, result.ModRevision))
+
+		rl.logWorkingLimits(ctx)
 
 	} else {
-		logger.Debug(ctx, fmt.Sprintf("no update, use configuration: version: %d, mod_revision: %d", settings.Version, settings.ModRevision))
+		logger.Info(ctx, fmt.Sprintf("no update, use configuration: version: %d, mod_revision: %d", settings.Version, settings.ModRevision))
 	}
 
 	return nil
