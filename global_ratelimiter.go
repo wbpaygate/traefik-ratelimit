@@ -12,7 +12,6 @@ import (
 	"github.com/wbpaygate/traefik-ratelimit/internal/keeper"
 	"github.com/wbpaygate/traefik-ratelimit/internal/limiter"
 	"github.com/wbpaygate/traefik-ratelimit/internal/logger"
-	"github.com/wbpaygate/traefik-ratelimit/internal/pattern"
 )
 
 const (
@@ -49,9 +48,9 @@ type RateLimiter struct {
 	limits        atomic.Value // *Limits
 	keeperSetting atomic.Value // *keeper.Value
 
-	patterns atomic.Value // *sync.Map
-	headers  atomic.Value // *sync.Map
-	mu       sync.Mutex   // нужен для релоада
+	rules atomic.Value // *sync.Map
+
+	mu sync.Mutex // нужен для релоада
 
 	keeperClient atomic.Value
 	ticker       atomic.Value
@@ -62,8 +61,7 @@ func NewRateLimiter(ctx context.Context, rateLimitLimits string) *RateLimiter {
 		limits:        atomic.Value{},
 		keeperSetting: atomic.Value{},
 
-		patterns: atomic.Value{},
-		headers:  atomic.Value{},
+		rules: atomic.Value{},
 
 		keeperClient: atomic.Value{},
 		ticker:       atomic.Value{},
@@ -75,8 +73,7 @@ func NewRateLimiter(ctx context.Context, rateLimitLimits string) *RateLimiter {
 		ModRevision: 0,
 	})
 
-	rl.patterns.Store(&sync.Map{})
-	rl.headers.Store(&sync.Map{})
+	rl.rules.Store(&sync.Map{})
 
 	rl.keeperClient.Store((*keeper.KeeperClient)(nil))
 
@@ -167,15 +164,14 @@ func (rl *RateLimiter) Configure(ctx context.Context, cfg *Config, kc *keeper.Ke
 }
 
 func (rl *RateLimiter) logWorkingLimits(ctx context.Context) {
-	var patternsData []string
-	var headersData []string
+	var rulesData []string
 
-	if patternsPtr := rl.patterns.Load(); patternsPtr != nil {
-		if patterns, okTypeAssert := patternsPtr.(*sync.Map); okTypeAssert {
-			patterns.Range(func(key, value any) bool {
-				if ptrn, ok := key.(*pattern.Pattern); ok {
+	if rulesPtr := rl.rules.Load(); rulesPtr != nil {
+		if rules, okTypeAssert := rulesPtr.(*sync.Map); okTypeAssert {
+			rules.Range(func(key, value any) bool {
+				if rule, ok := key.(RuleImpl); ok {
 					if lim, ok := value.(*limiter.Limiter); ok {
-						patternsData = append(patternsData, ptrn.String()+", limit:"+strconv.Itoa(lim.Limit()))
+						rulesData = append(rulesData, "[ limit: "+strconv.Itoa(lim.Limit())+", rules: "+rule.String()+" ]")
 					}
 				}
 				return true
@@ -186,21 +182,5 @@ func (rl *RateLimiter) logWorkingLimits(ctx context.Context) {
 		logger.Error(ctx, "patterns is nil")
 	}
 
-	if headersPtr := rl.headers.Load(); headersPtr != nil {
-		if headers, okTypeAssert := headersPtr.(*sync.Map); okTypeAssert {
-			headers.Range(func(key, value any) bool {
-				if header, ok := key.(*Header); ok {
-					if lim, ok := value.(*limiter.Limiter); ok {
-						patternsData = append(patternsData, header.String()+", limit:"+strconv.Itoa(lim.Limit()))
-					}
-				}
-				return true
-			})
-		}
-
-	} else {
-		logger.Error(ctx, "headers is nil")
-	}
-
-	logger.Info(ctx, "current rate limits overview", "patterns", patternsData, "headers", headersData)
+	logger.Info(ctx, "current rate limits overview", rulesData)
 }

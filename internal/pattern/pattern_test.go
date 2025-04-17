@@ -13,6 +13,30 @@ func TestPattern_Match(t *testing.T) {
 		want       bool
 	}{
 		{
+			name:       "empty_pattern:positive",
+			patternStr: "",
+			urlPath:    []byte(""),
+			want:       true,
+		},
+		{
+			name:       "empty_pattern:negative",
+			patternStr: "",
+			urlPath:    []byte("/app/health"),
+			want:       false,
+		},
+		{
+			name:       "slash:positive",
+			patternStr: "/",
+			urlPath:    []byte("/"),
+			want:       true,
+		},
+		{
+			name:       "slash:negative",
+			patternStr: "/",
+			urlPath:    []byte("/app/health"),
+			want:       false,
+		},
+		{
 			name:       "regular:positive",
 			patternStr: "/app/health",
 			urlPath:    []byte("/app/health"),

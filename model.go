@@ -1,7 +1,11 @@
 package traefik_ratelimit
 
+import (
+	"github.com/wbpaygate/traefik-ratelimit/internal/pattern"
+)
+
 type Rule struct {
-	UrlPathPattern string `json:"urlpathpattern"`
+	URLPathPattern string `json:"urlpathpattern"`
 	HeaderKey      string `json:"headerkey"`
 	HeaderVal      string `json:"headerval"`
 }
@@ -21,5 +25,19 @@ type Header struct {
 }
 
 func (h *Header) String() string {
-	return h.key + "_" + h.val
+	return h.key + ": " + h.val
+}
+
+type RuleImpl struct {
+	URLPathPattern *pattern.Pattern
+	Header         *Header
+}
+
+func (ri *RuleImpl) String() string {
+	if ri.Header != nil {
+		return "[" + ri.URLPathPattern.String() + ", " + ri.Header.String() + "]"
+
+	}
+
+	return "[" + ri.URLPathPattern.String() + "]"
 }
