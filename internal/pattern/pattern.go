@@ -24,6 +24,13 @@ type patternPart struct {
 func NewPattern(pattern string) *Pattern {
 	bytesPattern := []byte(pattern)
 
+	if pattern == "" {
+		return &Pattern{
+			value:  bytesPattern,
+			prefix: bytesPattern,
+		}
+	}
+
 	patternParts := bytes.Split(bytesPattern, []byte("/"))
 
 	var pp []patternPart
@@ -57,6 +64,10 @@ func (p *Pattern) String() string {
 }
 
 func (p *Pattern) Match(urlPath []byte) bool {
+	if len(p.patternParts) == 0 {
+		return len(urlPath) == 0
+	}
+
 	if !bytes.HasPrefix(urlPath, p.prefix) {
 		return false
 	}

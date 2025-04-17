@@ -98,62 +98,41 @@ func (rl *RateLimiter) hotReloadLimits(limits *Limits) {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 
-	newPatterns := &sync.Map{}
-	newHeaders := &sync.Map{}
+	newRules := &sync.Map{}
 
 	for _, limit := range limits.Limits {
 		lim := limiter.NewLimiter(limit.Limit)
 
 		for _, rule := range limit.Rules {
-			stored := false
-
-			if rule.UrlPathPattern != "" {
-				newPatterns.Store(pattern.NewPattern(rule.UrlPathPattern), lim)
-				stored = true
+			ruleImpl := RuleImpl{
+				URLPathPattern: pattern.NewPattern(rule.URLPathPattern),
 			}
 
 			if rule.HeaderKey != "" && rule.HeaderVal != "" {
-				newHeaders.Store(&Header{
+				ruleImpl.Header = &Header{
 					key: rule.HeaderKey,
 					val: rule.HeaderVal,
-				}, lim)
-				stored = true
+				}
 			}
 
-			if !stored {
-				lim.Close()
-			}
+			newRules.Store(ruleImpl, lim)
 		}
 	}
 
 	// закрытие старых лимитеров
-	if oldPatternsPtr := rl.patterns.Load(); oldPatternsPtr != nil {
-		if oldPatterns, okTypeAssert := oldPatternsPtr.(*sync.Map); okTypeAssert {
-			defer func() {
-				oldPatterns.Range(func(key, value any) bool {
+	if oldRulesPtr := rl.rules.Load(); oldRulesPtr != nil {
+		if oldRules, okTypeAssert := oldRulesPtr.(*sync.Map); okTypeAssert {
+			defer func() { // закрываем уже после переключения
+				oldRules.Range(func(key, value any) bool {
 					if lim, ok := value.(*limiter.Limiter); ok {
 						lim.Close()
 					}
+
 					return true
 				})
 			}()
 		}
 	}
 
-	if oldHeadersPtr := rl.headers.Load(); oldHeadersPtr != nil {
-		if oldHeaders, okTypeAssert := oldHeadersPtr.(*sync.Map); okTypeAssert {
-			defer func() {
-				oldHeaders.Range(func(key, value any) bool {
-					if lim, ok := value.(*limiter.Limiter); ok {
-						lim.Close()
-					}
-					return true
-				})
-			}()
-		}
-	}
-
-	// атомарное переключение
-	rl.patterns.Store(newPatterns)
-	rl.headers.Store(newHeaders)
+	rl.rules.Store(newRules) // атомарное переключение
 }
