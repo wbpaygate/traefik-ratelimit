@@ -57,14 +57,9 @@ func (rl *TraefikRateLimiter) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 // New created a new plugin.
 func New(ctx context.Context, next http.Handler, cfg *Config, name string) (http.Handler, error) {
 	logConfig(ctx, cfg)
-	if cfg.RatelimitDebug != "" {
-		if debug, err := strconv.ParseBool(cfg.RatelimitDebug); err == nil {
-			logger.SetDebug(ctx, debug)
-		}
 
-	} else {
-		logger.SetDebug(ctx, false)
-	}
+	debug, _ := strconv.ParseBool(cfg.RatelimitDebug)
+	logger.SetDebug(ctx, debug)
 
 	globalRateLimiter.Configure(ctx, cfg, nil)
 

@@ -84,14 +84,6 @@ func runRateLimiterTests(t *testing.T, tests []testCase) {
 func TestRateLimiter(t *testing.T) {
 	tests := []testCase{
 		{
-			name: "Empty config should not limit",
-			config: &Config{
-				RatelimitDebug: "true",
-			},
-			requestPath:     "",
-			expectedAllowed: -1, // -1 имеется ввиду нет проверки
-		},
-		{
 			name: "Default config should limit to 3 requests",
 			config: &Config{
 				RatelimitData:  `{"limits":[{"limit":3,"rules":[{"urlpathpattern":"/whoami"}]}]}`,
@@ -99,6 +91,14 @@ func TestRateLimiter(t *testing.T) {
 			},
 			requestPath:     "/whoami",
 			expectedAllowed: 3,
+		},
+		{
+			name: "Empty config should not limit",
+			config: &Config{
+				RatelimitDebug: "true",
+			},
+			requestPath:     "",
+			expectedAllowed: -1, // -1 имеется ввиду нет проверки
 		},
 		{
 			name: "Should load limits from keeper",

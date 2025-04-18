@@ -2,11 +2,8 @@ package logger
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -66,7 +63,7 @@ func (l *Logger) SetLevel(level Level) {
 	l.level = level
 }
 
-func (l *Logger) log(level Level, msg string, fields ...any) {
+func (l *Logger) log(level Level, msg string, fields ...string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -89,23 +86,12 @@ func (l *Logger) log(level Level, msg string, fields ...any) {
 
 	if len(fields) > 0 {
 		sb.WriteString(" ")
-		for i := 0; i < len(fields); i += 2 {
+		for i, field := range fields {
 			if i > 0 {
 				sb.WriteString(" ")
 			}
-			key := fmt.Sprint(fields[i])
-			value := ""
-			if i+1 < len(fields) {
-				value = fmt.Sprint(fields[i+1])
-			}
-			sb.WriteString(fmt.Sprintf("%s=%s", key, value))
-		}
-	}
 
-	if level <= LevelDebug {
-		_, file, line, ok := runtime.Caller(3) // skip 3 frames
-		if ok {
-			sb.WriteString(fmt.Sprintf(" [%s:%d]", filepath.Base(file), line))
+			sb.WriteString(field)
 		}
 	}
 
@@ -114,19 +100,19 @@ func (l *Logger) log(level Level, msg string, fields ...any) {
 	_, _ = os.Stderr.WriteString(sb.String())
 }
 
-func (l *Logger) Debug(msg string, fields ...any) {
+func (l *Logger) Debug(msg string, fields ...string) {
 	l.log(LevelDebug, msg, fields...)
 }
 
-func (l *Logger) Info(msg string, fields ...any) {
+func (l *Logger) Info(msg string, fields ...string) {
 	l.log(LevelInfo, msg, fields...)
 }
 
-func (l *Logger) Warn(msg string, fields ...any) {
+func (l *Logger) Warn(msg string, fields ...string) {
 	l.log(LevelWarn, msg, fields...)
 }
 
-func (l *Logger) Error(msg string, fields ...any) {
+func (l *Logger) Error(msg string, fields ...string) {
 	l.log(LevelError, msg, fields...)
 }
 
@@ -153,21 +139,24 @@ func SetLevel(ctx context.Context, level Level) {
 func SetDebug(ctx context.Context, debug bool) {
 	if debug {
 		FromCtx(ctx).SetLevel(LevelDebug)
+
+	} else {
+		FromCtx(ctx).SetLevel(LevelInfo)
 	}
 }
 
-func Debug(ctx context.Context, msg string, fields ...any) {
+func Debug(ctx context.Context, msg string, fields ...string) {
 	FromCtx(ctx).Debug(msg, fields...)
 }
 
-func Info(ctx context.Context, msg string, fields ...any) {
+func Info(ctx context.Context, msg string, fields ...string) {
 	FromCtx(ctx).Info(msg, fields...)
 }
 
-func Warn(ctx context.Context, msg string, fields ...any) {
+func Warn(ctx context.Context, msg string, fields ...string) {
 	FromCtx(ctx).Warn(msg, fields...)
 }
 
-func Error(ctx context.Context, msg string, fields ...any) {
+func Error(ctx context.Context, msg string, fields ...string) {
 	FromCtx(ctx).Error(msg, fields...)
 }

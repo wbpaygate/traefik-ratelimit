@@ -52,8 +52,8 @@ type RateLimiter struct {
 
 	mu sync.Mutex // нужен для релоада
 
-	keeperClient atomic.Value
-	ticker       atomic.Value
+	keeperClient atomic.Value // *keeper.KeeperClient
+	ticker       atomic.Value // *time.Ticker
 }
 
 func NewRateLimiter(ctx context.Context, rateLimitLimits string) *RateLimiter {
@@ -75,7 +75,7 @@ func NewRateLimiter(ctx context.Context, rateLimitLimits string) *RateLimiter {
 
 	rl.rules.Store(&sync.Map{})
 
-	rl.keeperClient.Store((*keeper.KeeperClient)(nil))
+	rl.keeperClient.Store((*keeper.KeeperClient)(nil)) // не инициализирован
 
 	rl.ticker.Store(&time.Ticker{})
 
@@ -144,16 +144,11 @@ func (rl *RateLimiter) Configure(ctx context.Context, cfg *Config, kc *keeper.Ke
 		logger.Info(ctx, "update limits from config")
 	}
 
-	oldTickerPtr := rl.ticker.Load()
-	if oldTickerPtr != nil {
-		if oldTicker, ok := oldTickerPtr.(*time.Ticker); ok {
-			if oldTicker != nil {
-				oldTicker.Stop()
-				select {
-				case <-oldTicker.C: // ждём когда старый тикер остановится
-				default:
-				}
-			}
+	if oldTicker, ok := rl.ticker.Load().(*time.Ticker); ok {
+		oldTicker.Stop()
+		select {
+		case <-oldTicker.C: // освобождаем канал, если в нём что-то есть
+		default:
 		}
 	}
 
@@ -166,21 +161,20 @@ func (rl *RateLimiter) Configure(ctx context.Context, cfg *Config, kc *keeper.Ke
 func (rl *RateLimiter) logWorkingLimits(ctx context.Context) {
 	var rulesData []string
 
-	if rulesPtr := rl.rules.Load(); rulesPtr != nil {
-		if rules, okTypeAssert := rulesPtr.(*sync.Map); okTypeAssert {
-			rules.Range(func(key, value any) bool {
-				if rule, ok := key.(RuleImpl); ok {
-					if lim, ok := value.(*limiter.Limiter); ok {
-						rulesData = append(rulesData, "[ limit: "+strconv.Itoa(lim.Limit())+", rules: "+rule.String()+" ]")
-					}
+	if rules, ok := rl.rules.Load().(*sync.Map); ok {
+		rules.Range(func(key, value any) bool {
+			if rule, okRule := key.(RuleImpl); okRule {
+				if lim, okLim := value.(*limiter.Limiter); okLim {
+					rulesData = append(rulesData, "[ limit: "+strconv.Itoa(lim.Limit())+", rules: "+rule.String()+" ]")
 				}
-				return true
-			})
-		}
+			}
+
+			return true
+		})
 
 	} else {
-		logger.Error(ctx, "patterns is nil")
+		logger.Error(ctx, "rules is nil")
 	}
 
-	logger.Info(ctx, "current rate limits overview", rulesData)
+	logger.Info(ctx, "current rate limits overview", rulesData...)
 }

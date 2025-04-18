@@ -51,12 +51,7 @@ func TestRateLimiter_hotReloadLimits(t *testing.T) {
 
 		rl.hotReloadLimits(limits)
 
-		rulesPtr := rl.rules.Load()
-		if rulesPtr == nil {
-			t.Fatalf("rules is nil")
-		}
-
-		rules, okTypeAssert := rulesPtr.(*sync.Map)
+		rules, okTypeAssert := rl.rules.Load().(*sync.Map)
 		if !okTypeAssert {
 			t.Fatalf("rules, cannot type assert *sync.Map")
 		}
@@ -93,12 +88,7 @@ func TestRateLimiter_hotReloadLimits(t *testing.T) {
 
 		wg.Wait()
 
-		newRulesPtr := rl.rules.Load()
-		if newRulesPtr == nil {
-			t.Fatalf("newRulesPtr is nil")
-		}
-
-		newRules, okTypeAssert := newRulesPtr.(*sync.Map)
+		newRules, okTypeAssert := rl.rules.Load().(*sync.Map)
 		if !okTypeAssert {
 			t.Fatalf("rules, cannot type assert *sync.Map")
 		}
@@ -119,30 +109,23 @@ func TestRateLimiter_hotReloadLimits(t *testing.T) {
 		oldLimiter2 := limiter.NewLimiter(10)
 		oldLimiter3 := limiter.NewLimiter(15)
 
-		rulesPtr := rl.rules.Load()
-		if rulesPtr == nil {
-			t.Fatalf("rulesPtr is nil")
-		}
-
-		rules, okTypeAssert := rulesPtr.(*sync.Map)
+		rules, okTypeAssert := rl.rules.Load().(*sync.Map)
 		if !okTypeAssert {
 			t.Fatalf("rules, cannot type assert *sync.Map")
 		}
 
-		rules.Store(pattern.NewPattern("/path1"), oldLimiter1)
-		rules.Store(pattern.NewPattern("/path2"), oldLimiter3)
+		rules.Store(RuleImpl{
+			URLPathPattern: pattern.NewPattern("/path1"),
+		}, oldLimiter1)
 
-		headersPtr := rl.rules.Load()
-		if headersPtr == nil {
-			t.Fatalf("headers is nil")
-		}
+		rules.Store(RuleImpl{
+			URLPathPattern: pattern.NewPattern("/path2"),
+		}, oldLimiter2)
 
-		headers, okTypeAssert := headersPtr.(*sync.Map)
-		if !okTypeAssert {
-			t.Fatalf("headers, cannot type assert *sync.Map")
-		}
-
-		headers.Store(&Header{key: "X-Test", val: "1"}, oldLimiter2)
+		rules.Store(RuleImpl{
+			URLPathPattern: pattern.NewPattern("/path3"),
+			Header:         &Header{key: "X-Test", val: "1"},
+		}, oldLimiter3)
 
 		newLimits := &Limits{
 			Limits: []Limit{
@@ -168,12 +151,7 @@ func TestRateLimiter_hotReloadLimits(t *testing.T) {
 			t.Error("Old limiter 3 was not closed")
 		}
 
-		newRulesPtr := rl.rules.Load()
-		if newRulesPtr == nil {
-			t.Fatalf("newRules is nil")
-		}
-
-		newRules, okTypeAssert := newRulesPtr.(*sync.Map)
+		newRules, okTypeAssert := rl.rules.Load().(*sync.Map)
 		if !okTypeAssert {
 			t.Fatalf("rules, cannot type assert *sync.Map")
 		}
@@ -192,8 +170,13 @@ func TestRateLimiter_hotReloadLimits(t *testing.T) {
 		if _, ok := findPattern(newRules, "/path1"); ok {
 			t.Error("Old pattern /path1 should be removed")
 		}
+
 		if _, ok := findPattern(newRules, "/path2"); ok {
 			t.Error("Old pattern /path2 should be removed")
+		}
+
+		if _, ok := findPattern(newRules, "/path3"); ok {
+			t.Error("Old pattern /path3 should be removed")
 		}
 	})
 
@@ -210,12 +193,8 @@ func TestRateLimiter_hotReloadLimits(t *testing.T) {
 		rl.hotReloadLimits(emptyLimits) // не должно паниковать
 
 		count := 0 // проверяем что мапы пусты
-		rulesPtr := rl.rules.Load()
-		if rulesPtr == nil {
-			t.Fatalf("rules is nil")
-		}
 
-		rules, okTypeAssert := rulesPtr.(*sync.Map)
+		rules, okTypeAssert := rl.rules.Load().(*sync.Map)
 		if !okTypeAssert {
 			t.Fatalf("rules, cannot type assert *sync.Map")
 		}
@@ -252,12 +231,8 @@ func TestRateLimiter_hotReloadLimits(t *testing.T) {
 		wg.Wait()
 
 		count := 0 // после всех обновлений должен остаться последний лимитер
-		rulesPtr := rl.rules.Load()
-		if rulesPtr == nil {
-			t.Fatalf("rules is nil")
-		}
 
-		rules, okTypeAssert := rulesPtr.(*sync.Map)
+		rules, okTypeAssert := rl.rules.Load().(*sync.Map)
 		if !okTypeAssert {
 			t.Fatalf("rules, cannot type assert *sync.Map")
 		}

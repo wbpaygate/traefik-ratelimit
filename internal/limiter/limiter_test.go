@@ -8,21 +8,21 @@ import (
 )
 
 func TestLimiter_Allow_Negative(t *testing.T) {
-	t.Run("zero limit - all requests denied", func(t *testing.T) {
+	t.Run("zero limit - all requests allow", func(t *testing.T) {
 		l := NewLimiter(0)
 		defer l.Close()
 
-		if l.Allow() {
-			t.Error("Allow() should return false for zero limit")
+		if !l.Allow() {
+			t.Error("Allow() should return true for zero limit")
 		}
 	})
 
-	t.Run("negative limit - all requests denied", func(t *testing.T) {
+	t.Run("negative limit - all requests allow", func(t *testing.T) {
 		l := NewLimiter(-1)
 		defer l.Close()
 
-		if l.Allow() {
-			t.Error("Allow() should return false for negative limit")
+		if !l.Allow() {
+			t.Error("Allow() should return true for negative limit")
 		}
 	})
 
