@@ -62,6 +62,10 @@ func (l *Limiter) Limit() int {
 }
 
 func (l *Limiter) Allow() bool {
+	if l.limit.Load() <= 0 {
+		return true
+	}
+
 	currentWindow := time.Now().Second() % WindowCount
 	// уменьшаем счётчик окна и проверяем результат
 	a := l.windows[currentWindow].Add(-1) >= 0

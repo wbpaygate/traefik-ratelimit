@@ -1,6 +1,7 @@
 package traefik_ratelimit
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,23 +13,26 @@ import (
 	"github.com/wbpaygate/traefik-ratelimit/internal/pattern"
 )
 
-func serializeLimits(b []byte) (*Limits, error) {
+func serializeAndValidateLimits(b []byte) (*Limits, error) {
 	var l Limits
 	if err := json.Unmarshal(b, &l); err != nil {
 		return nil, fmt.Errorf("unmarshal error: %w", err)
+	}
+
+	if err := l.validate(); err != nil {
+		return nil, fmt.Errorf("validate error: %w", err)
 	}
 
 	return &l, nil
 }
 
 func (rl *RateLimiter) loadLimits(limitsConfig []byte) error {
-	l, err := serializeLimits(limitsConfig)
+	l, err := serializeAndValidateLimits(limitsConfig)
 	if err != nil {
-		return fmt.Errorf("serializeLimits error: %w", err)
+		return fmt.Errorf("serializeAndValidateLimits error: %w", err)
 	}
 
-	settingsAny := rl.keeperSetting.Load()
-	settings, ok := settingsAny.(*keeper.Value)
+	settings, ok := rl.keeperSetting.Load().(*keeper.Value)
 	if !ok {
 		return fmt.Errorf("cannot type assert *keeper.Value")
 	}
@@ -47,9 +51,8 @@ func (rl *RateLimiter) loadLimits(limitsConfig []byte) error {
 
 func (rl *RateLimiter) updateLimits(ctx context.Context) error {
 	kc, ok := rl.keeperClient.Load().(*keeper.KeeperClient)
-	if !ok || kc == nil {
+	if !ok {
 		return fmt.Errorf("keeperClient not init, try reconfigure")
-
 	}
 
 	result, err := kc.GetRateLimits(ctx)
@@ -61,8 +64,9 @@ func (rl *RateLimiter) updateLimits(ctx context.Context) error {
 		return fmt.Errorf("empty result from keeper")
 	}
 
-	settingsAny := rl.keeperSetting.Load()
-	settings, ok := settingsAny.(*keeper.Value)
+	logDebugJSON(ctx, result.Value)
+
+	settings, ok := rl.keeperSetting.Load().(*keeper.Value)
 	if !ok {
 		return fmt.Errorf("cannot type assert *keeper.Value")
 	}
@@ -73,7 +77,7 @@ func (rl *RateLimiter) updateLimits(ctx context.Context) error {
 	if !settings.Equal(result) {
 		logger.Debug(ctx, fmt.Sprintf("old configuration: version: %d, mod_revision: %d", settings.Version, settings.ModRevision))
 
-		l, err := serializeLimits([]byte(result.Value))
+		l, err := serializeAndValidateLimits([]byte(result.Value))
 		if err != nil {
 			return fmt.Errorf("failed serialize and validate limits: %w", err)
 		}
@@ -120,19 +124,28 @@ func (rl *RateLimiter) hotReloadLimits(limits *Limits) {
 	}
 
 	// закрытие старых лимитеров
-	if oldRulesPtr := rl.rules.Load(); oldRulesPtr != nil {
-		if oldRules, okTypeAssert := oldRulesPtr.(*sync.Map); okTypeAssert {
-			defer func() { // закрываем уже после переключения
-				oldRules.Range(func(key, value any) bool {
-					if lim, ok := value.(*limiter.Limiter); ok {
-						lim.Close()
-					}
+	if oldRules, ok := rl.rules.Load().(*sync.Map); ok {
+		defer func() {
+			oldRules.Range(func(key, value any) bool {
+				if lim, ok := value.(*limiter.Limiter); ok {
+					lim.Close()
+				}
 
-					return true
-				})
-			}()
-		}
+				return true
+			})
+		}()
 	}
 
 	rl.rules.Store(newRules) // атомарное переключение
+}
+
+func logDebugJSON(ctx context.Context, rawJSON string) {
+	var compacted bytes.Buffer
+
+	if err := json.Compact(&compacted, []byte(rawJSON)); err != nil {
+		logger.Debug(ctx, "invalid JSON, logging raw:", rawJSON)
+		return
+	}
+
+	logger.Debug(ctx, "raw limits from keeper:", compacted.String())
 }

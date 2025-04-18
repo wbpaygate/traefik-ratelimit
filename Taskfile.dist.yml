@@ -11,7 +11,7 @@ tasks:
 
   test:
     cmds:
-      - go test -v -cover ./...
+      - go test -v -cover -race -count=1 ./...
 
   yaegi_test:
     cmds:
