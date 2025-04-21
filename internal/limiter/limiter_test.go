@@ -31,6 +31,7 @@ func TestLimiter_Allow_Negative(t *testing.T) {
 		l := NewLimiter(limit)
 		defer l.Close()
 
+		start := time.Now()
 		allowed := 0
 		for i := 0; i < limit*2; i++ { // пробуем сделать в 2 раза больше запросов
 			if l.Allow() {
@@ -39,7 +40,9 @@ func TestLimiter_Allow_Negative(t *testing.T) {
 		}
 
 		t.Logf("Initial burst: allowed %d/%d", allowed, limit)
-		if allowed != limit {
+		// бурст подразумивает отправку запросов в одно окно
+		// так-как лимит одного окна это limit/WindowCount, то такое количество мы и будем проверять
+		if allowed != limit/WindowCount {
 			t.Errorf("Initial burst: got %d allowed, want %d", allowed, limit)
 		}
 
@@ -48,7 +51,12 @@ func TestLimiter_Allow_Negative(t *testing.T) {
 			t.Error("Request after burst was allowed, want denied")
 		}
 
-		time.Sleep(1100 * time.Millisecond)
+		end := time.Since(start)
+		t.Logf("Burst duration: %v)", end)
+
+		time.Sleep(time.Second)
+
+		start = time.Now()
 
 		// проверяем новый бурс
 		allowed = 0
@@ -59,9 +67,12 @@ func TestLimiter_Allow_Negative(t *testing.T) {
 		}
 
 		t.Logf("New burst after refresh: allowed %d/%d", allowed, limit)
-		if allowed != limit {
+		if allowed != limit/WindowCount {
 			t.Errorf("New burst: got %d allowed, want %d", allowed, limit)
 		}
+
+		end = time.Since(start)
+		t.Logf("Second burst duration: %v)", end)
 	})
 }
 

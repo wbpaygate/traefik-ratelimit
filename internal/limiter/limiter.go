@@ -25,7 +25,7 @@ func NewLimiter(limit int) *Limiter {
 	// инициализируем все окна начальным значением лимита
 	for i := 0; i < WindowCount; i++ {
 		l.windows[i] = atomic.Int32{}
-		l.windows[i].Store(limit32)
+		l.windows[i].Store(limit32 / WindowCount)
 	}
 
 	l.limit.Store(limit32)
