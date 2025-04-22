@@ -1,3 +1,4 @@
+# ver: v0.0.15
 # ratelimiter - traefik_ratelimiter
 
 Плагин "ratelimiter" для сервиса traefik.
